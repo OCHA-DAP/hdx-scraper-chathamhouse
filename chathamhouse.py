@@ -161,6 +161,79 @@ def integer_key_convert(dictin):
     return dictout
 
 
+def float_value_convert(dictin):
+    dictout = dict()
+    for key in dictin:
+        dictout[key] = float(dictin[key])
+    return dictout
+
+
+def avg_dicts(dictin1, dictin2):
+    dictout = dict()
+    for key in dictin1:
+        dictout[key] = (dictin1[key] + dictin2[key]) / 2.0
+    return dictout
+
+
+class ChathamHouseModel:
+    levels = ['Baseline', 'Target 1', 'Target 2', 'Target 3']
+
+    def __init__(self, constants):
+        self.constants = constants
+
+    def calculate_population(self, iso3, unhcr_non_camp, urbanratios, slumratios):
+        urbanratio = urbanratios.get(iso3)
+        if not urbanratio:
+            return None, None
+        combined_urbanratio = (1 - urbanratio) * self.constants['Population Adjustment Factor'] + urbanratio
+        displaced_population = unhcr_non_camp[iso3]
+        urban_displaced_population = displaced_population * combined_urbanratio
+        rural_displaced_population = displaced_population - urban_displaced_population
+        slumratio = slumratios.get(iso3)
+        if not slumratio:
+            return None, None
+        slum_displaced_population = urban_displaced_population * slumratio
+        urban_minus_slum_displaced_population = urban_displaced_population - slum_displaced_population
+        hh_size = self.constants['Household Size']
+        number_hh = dict()
+        number_hh['urban'] = urban_minus_slum_displaced_population / hh_size
+        number_hh['slum'] = slum_displaced_population / hh_size
+        number_hh['rural'] = rural_displaced_population / hh_size
+        return number_hh
+
+    @staticmethod
+    def calculate_hh_grid_access(number_hh, ratio):
+        hh_grid_access = number_hh * ratio
+        hh_offgrid = number_hh - hh_grid_access
+        return hh_grid_access, hh_offgrid
+
+    def get_kWh_per_yr_per_hh(self, iso3, electiers, elecappliances):
+        kWh_per_yr_per_hh = elecappliances[iso3]
+        if kWh_per_yr_per_hh == 0.0:
+            tier = self.constants['Lighting Grid Tier']
+            kWh_per_yr_per_hh = electiers[tier]
+        return kWh_per_yr_per_hh
+
+    def calculate_ongrid_lighting(self, iso3, hh_grid_access, electiers, elecappliances, elecco2):
+        kWh_per_yr_per_hh = self.get_kWh_per_yr_per_hh(iso3, electiers, elecappliances)
+        expenditure_on_grid_dlrs_per_year_per_hh = self.constants['Electricity Cost'] * kWh_per_yr_per_hh / 100.0
+        grid_expenditure = hh_grid_access * expenditure_on_grid_dlrs_per_year_per_hh / 1000000
+        co2_emissions_per_hh = kWh_per_yr_per_hh * elecco2[iso3]
+        grid_co2_emissions = hh_grid_access * co2_emissions_per_hh / 1000
+        return grid_expenditure, grid_co2_emissions
+
+    def calculate_offgrid_lighting(self, level, iso3, hh_offgrid, lighting, elecco2):
+        offgrid_multiplier = hh_offgrid * self.constants['Lighting Offgrid Scaling Factor']
+        offgrid_expenditure_multiplier = offgrid_multiplier / 1000000 * 12
+        offgrid_capital_multiplier = offgrid_multiplier / 1000000
+        offgrid_co2_multiplier = offgrid_multiplier / 1000 * elecco2[iso3]
+
+        offgrid_expenditure = offgrid_expenditure_multiplier * lighting['%s Total fuel cost' % level]
+        offgrid_capital_costs = offgrid_capital_multiplier * lighting['%s Total capital cost' % level]
+        offgrid_co2_emissions = offgrid_co2_multiplier * (lighting['%s Direct CO2' % level] +
+                                                          lighting['%s Grid Primary energy' % level])
+        return offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions
+
 def generate_dataset_and_showcase(downloader, countrydata):
     """Parse json of the form:
     {

@@ -10,3 +10,4 @@ lighting_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO
 
 urban_ratio_wb: "SP.URB.TOTL.IN.ZS"
 urban_elec_wb: "1.3_ACCESS.ELECTRICITY.URBAN"
+rural_elec_wb: "1.2_ACCESS.ELECTRICITY.RURAL"
