@@ -7,6 +7,10 @@ elec_appliances_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4Z
 elec_tiers_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=1362918827&single=true&output=csv"
 elec_co2_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=368532877&single=true&output=csv"
 lighting_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=1217170247&single=true&output=csv"
+urban_nonsolid_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=773208334&single=true&output=csv"
+rural_nonsolid_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=70289777&single=true&output=csv"
+cooking_lpg_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=835586792&single=true&output=csv"
+cooking_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=1244769875&single=true&output=csv"
 
 urban_ratio_wb: "SP.URB.TOTL.IN.ZS"
 urban_elec_wb: "1.3_ACCESS.ELECTRICITY.URBAN"
