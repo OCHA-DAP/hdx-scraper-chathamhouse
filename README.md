@@ -1,7 +1,7 @@
 ### Chatham House Model
 [![Build Status](https://travis-ci.org/OCHA-DAP/hdxscraper-chathamhouse.svg?branch=master&ts=1)](https://travis-ci.org/OCHA-DAP/hdxscraper-chathamhouse) [![Coverage Status](https://coveralls.io/repos/github/OCHA-DAP/hdxscraper-chathamhouse/badge.svg?branch=master&ts=1)](https://coveralls.io/github/OCHA-DAP/hdxscraper-chathamhouse?branch=master)
 
-Collector designed to collect datasets required for Chatham House Model [Chatham House](http://http://www.sciencedirect.com/science/article/pii/S2211467X16300396).
+Collector designed to collect datasets required and runs [Chatham House](http://http://www.sciencedirect.com/science/article/pii/S2211467X16300396) Model.
 
 ### Usage
 python run.py
