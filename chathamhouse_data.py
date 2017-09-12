@@ -44,8 +44,8 @@ def get_camp_non_camp_populations(noncamp_types, camp_types):
     stream.open()
     for row in stream.iter():
         country = row[country_ind]
-        iso3, match = Location.get_iso3_country_code(country)
-        if iso3 is not None and match is True:
+        iso3 = Location.get_iso3_country_code(country)
+        if iso3 is not None:
             break
         prev_row = row
     countries[iso3] = country
@@ -78,7 +78,7 @@ def get_camp_non_camp_populations(noncamp_types, camp_types):
             break
     for row in stream.iter():
         country = row[country_ind]
-        iso3, match = Location.get_iso3_country_code(country)
+        iso3 = Location.get_iso3_country_code(country)
         if iso3 is None:
             continue
         countries[iso3] = country
@@ -134,7 +134,7 @@ def get_slumratios(url):
         for row in stream.iter(keyed=True):
             if not row:
                 break
-            iso3, match = Location.get_iso3_country_code(row['Country'])
+            iso3 = Location.get_iso3_country_code(row['Country'])
             if iso3 is None:
                 continue
             for year in years:
