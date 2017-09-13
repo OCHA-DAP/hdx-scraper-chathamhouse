@@ -1,0 +1,24 @@
+Location,Lighting OffGrid Baseline,Lighting OffGrid Target 1,Lighting OffGrid Target 2,Lighting OffGrid Target 3,Cooking Solid Baseline,Cooking Solid Target 1,Cooking Solid Target 2,Cooking Solid Target 3
+Subsaharan Africa A,,,,,1,1,7,8
+Subsaharan Africa B,,,,,2,2,7,8
+Subsaharan Africa C,,,,,3,3,3,8
+Subsaharan Africa D,,,,,4,4,4,8
+Subsaharan Africa E,,,,,5,5,5,8
+Subsaharan Africa F,1,1,3,7,,,,
+Subsaharan Africa G,2,1,3,7,,,,
+Subsaharan Africa I,4,3,3,7,,,,
+MENA A,,,,,1,1,7,8
+MENA B,,,,,2,2,7,8
+MENA D,,,,,4,4,4,8
+MENA F,1,1,3,7,,,,
+MENA G,2,1,3,7,,,,
+MENA H,3,2,2,6,,,,
+MENA I,4,3,3,7,,,,
+Asia A,,,,,1,1,7,8
+Asia B,,,,,2,2,7,8
+Asia E,,,,,5,5,5,8
+Asia F,1,1,3,7,,,,
+Asia G,2,1,3,7,,,,
+Europe DF,1,1,3,7,4,4,4,8
+Central Asia AF,1,1,3,7,1,1,7,8
+South America,1,1,3,3,4,4,4,8

@@ -2,7 +2,7 @@ import urllib.request
 from io import BytesIO
 from zipfile import ZipFile
 
-from hdx.data.dataset import Dataset
+from hdx.utilities.dictandlist import integer_value_convert
 from hdx.utilities.location import Location
 from tabulator import Stream
 
@@ -17,10 +17,9 @@ def get_worldbank_iso2_to_iso3(json_url, downloader):
     return iso2iso3
 
 
-def get_camp_non_camp_populations(noncamp_types, camp_types):
+def get_camp_non_camp_populations(noncamp_types, camp_types, datasets):
     noncamp_types = noncamp_types.split(',')
     camp_types = camp_types.split(',')
-    datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
     dataset_unhcr = None
     latest_date = None
     for dataset in datasets:
@@ -37,7 +36,6 @@ def get_camp_non_camp_populations(noncamp_types, camp_types):
     country = None
     row = None
     prev_row = None
-    countries = dict()
     unhcr_non_camp = dict()
     unhcr_camp = dict()
     stream = Stream(url, sheet=16)
@@ -48,7 +46,6 @@ def get_camp_non_camp_populations(noncamp_types, camp_types):
         if iso3 is not None:
             break
         prev_row = row
-    countries[iso3] = country
     accommodation_ind = None
     location_ind = None
     population_ind = None
@@ -74,14 +71,13 @@ def get_camp_non_camp_populations(noncamp_types, camp_types):
             break
     for camp_type in camp_types:
         if camp_type in accommodation_type:
-            unhcr_camp[row[location_ind]] = population
+            unhcr_camp[row[location_ind]] = population, iso3
             break
     for row in stream.iter():
         country = row[country_ind]
         iso3 = Location.get_iso3_country_code(country)
         if iso3 is None:
             continue
-        countries[iso3] = country
         accommodation_type = row[accommodation_ind].lower()
         for noncamp_type in noncamp_types:
             if noncamp_type in accommodation_type:
@@ -96,10 +92,17 @@ def get_camp_non_camp_populations(noncamp_types, camp_types):
                 break
         for camp_type in camp_types:
             if camp_type in accommodation_type:
-                unhcr_camp[row[location_ind]] = population
+                unhcr_camp[row[location_ind]] = population, iso3
                 break
     stream.close()
     return unhcr_non_camp, unhcr_camp
+
+
+def get_camptypes(url, downloader):
+    camptypes = downloader.download_csv_rows_as_dicts(url)
+    for key in camptypes:
+        camptypes[key] = integer_value_convert(camptypes[key])
+    return camptypes
 
 
 def get_worldbank_series(json_url, downloader, wbiso2iso3):
