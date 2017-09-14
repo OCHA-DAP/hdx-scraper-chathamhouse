@@ -78,7 +78,6 @@ def main():
 
     model = ChathamHouseModel(constants)
 
-
     non_camp_results = dict()
     for iso3 in sorted(unhcr_non_camp):
         number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
