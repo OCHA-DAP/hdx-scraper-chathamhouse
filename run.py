@@ -5,8 +5,12 @@ Top level script. Calls other functions that generate datasets that this script 
 
 """
 import logging
+from collections import OrderedDict
 from functools import partial
 from os.path import join
+
+from datetime import datetime
+from tempfile import gettempdir
 
 from hdx.data.dataset import Dataset
 from hdx.facades.hdx_scraperwiki import facade
@@ -17,7 +21,7 @@ from hdx.utilities.location import Location
 
 from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
     get_worldbank_series, \
-    get_slumratios, get_camptypes
+    get_slumratios, get_camptypes, generate_dataset_and_showcase, output_csv
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 logger = logging.getLogger(__name__)
@@ -77,8 +81,51 @@ def main():
     small_camps_elecgridco2 = float_value_convert(small_camp_data['Electricity Grid CO2'])
 
     model = ChathamHouseModel(constants)
+    pop_types = ['Urban', 'Slum', 'Rural', 'Camp', 'Small Camp']
+    headers = list()
+    results = list()
 
-    non_camp_results = dict()
+    def add_offgrid_headers(l, hl):
+        for tier in model.tiers:
+            l[-1].extend(['Offgrid Expenditure %s' % tier, 'Offgrid Capital Costs %s' % tier,
+                            'Offgrid CO2 Emissions %s' % tier])
+            tier = tier.lower().replace(' ', '_')
+            hl.extend(['#value+offgrid+expenditure+%s' % tier, '#value+offgrid+capital_costs+%s' % tier,
+                            '#value+offgrid+co2_emissions+%s' % tier])
+
+    def add_solid_headers(l, hl):
+        for tier in model.tiers:
+            l[-1].extend(['Solid Expenditure %s' % tier, 'Solid Capital Costs %s' % tier,
+                            'Solid CO2_Emissions %s' % tier])
+            tier = tier.lower().replace(' ', '_')
+            hl.extend(['#value+solid+expenditure+%s' % tier, '#value+solid+capital_costs+%s' % tier,
+                            '#value+solid+co2_emissions+%s' % tier])
+
+    for pop_type in pop_types:
+        results.append(list())
+        if pop_type == 'Camp':
+            headers.append(['ISO3 Country Code', 'Camp Name'])
+            hxlheaders = ['#country+code', '#loc+name']
+            add_offgrid_headers(headers, hxlheaders)
+            add_solid_headers(headers, hxlheaders)
+        elif pop_type == 'Small Camp':
+            headers.append(['Region'])
+            hxlheaders = ['#region+name']
+            add_offgrid_headers(headers, hxlheaders)
+            add_solid_headers(headers, hxlheaders)
+        else:
+            headers.append(['ISO3 Country Code', 'Grid Expenditure', 'Grid CO2 Emissions'])
+            hxlheaders = ['#country+code', '#value+grid+expenditure', '#value+grid+co2_emissions']
+            add_offgrid_headers(headers, hxlheaders)
+            headers[-1].extend(['Nonsolid Expenditure', 'Nonsolid CO2 Emissions'])
+            hxlheaders.extend(['#value+nonsolid+expenditure', '#value+nonsolid+co2_emissions'])
+            add_solid_headers(headers, hxlheaders)
+        results[pop_types.index(pop_type)].append(hxlheaders)
+
+    today = datetime.now()
+    dataset, showcase = generate_dataset_and_showcase(pop_types, today)
+    resources = dataset.get_resources()
+
     for iso3 in sorted(unhcr_non_camp):
         number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
         if number_hh_by_pop_type is None:
@@ -91,7 +138,6 @@ def main():
         country_noncampelecgridco2 = noncampelecgridco2[iso3]
         country_cookinglpg = cookinglpg[iso3]
 
-        non_camp_results[iso3] = dict()
         for pop_type in number_hh_by_pop_type:
             number_hh = number_hh_by_pop_type[pop_type]
 
@@ -104,129 +150,76 @@ def main():
             hh_nonsolid_access, hh_no_nonsolid_access = \
                 model.calculate_hh_access(number_hh, noncamp_nonsolid_access[pop_type][iso3])
 
-            res = dict()
-            res['grid_expenditure'], res['grid_co2_emissions'] = \
-                model.calculate_ongrid_lighting(hh_grid_access, elecgridtiers, country_elecappliances,
-                                                country_noncampelecgridco2)
-            res['nonsolid_expenditure'], res['nonsolid_co2_emissions'] = \
-                model.calculate_non_solid_cooking(hh_nonsolid_access, country_cookinglpg)
+            ge, gc = model.calculate_ongrid_lighting(hh_grid_access, elecgridtiers, country_elecappliances,
+                                                     country_noncampelecgridco2)
+            ne, nc = model.calculate_non_solid_cooking(hh_nonsolid_access, country_cookinglpg)
 
-            offgrid_expenditure = list()
-            offgrid_capital_costs = list()
-            offgrid_co2_emissions = list()
-            solid_expenditure = list()
-            solid_capital_costs = list()
-            solid_co2_emissions = list()
+            res = [iso3, ge, gc, ne, nc]
             for tier in model.tiers:
                 oe, oc, oco2 = model.calculate_noncamp_offgrid_lighting(pop_type, tier, hh_offgrid,
                                                                         noncamplightingoffgridtypes,
                                                                         lightingoffgridcost,
                                                                         elecgriddirectenergy,
                                                                         country_noncampelecgridco2)
-                offgrid_expenditure.append(oe)
-                offgrid_capital_costs.append(oc)
-                offgrid_co2_emissions.append(oco2)
                 se, sc, sco2 = model.calculate_noncamp_solid_cooking(pop_type, tier, hh_no_nonsolid_access,
                                                                      noncampcookingsolidtypes, cookingsolidcost)
-                solid_expenditure.append(se)
-                solid_capital_costs.append(sc)
-                solid_co2_emissions.append(sco2)
-            res['offgrid_expenditure'] = offgrid_expenditure
-            res['offgrid_capital_costs'] = offgrid_capital_costs
-            res['offgrid_co2_emissions'] = offgrid_co2_emissions
-            res['solid_expenditure'] = solid_expenditure
-            res['solid_capital_costs'] = solid_capital_costs
-            res['solid_co2_emissions'] = solid_co2_emissions
 
-            non_camp_results[iso3][pop_type] = res
+                res.extend([oe, oc, oco2, se, sc, sco2])
+            results[pop_types.index(pop_type.capitalize())].append(res)
 
-    camp_results = dict()
     for camp in sorted(unhcr_camp):
         population, iso3 = unhcr_camp[camp]
         number_hh = model.calculate_number_hh(population)
-        campgroup_camptypes = camptypes.get(camp)
-        if campgroup_camptypes is None:
+        region_camptypes = camptypes.get(camp)
+        if region_camptypes is None:
             logger.info('Missing camp %s in camp types!' % camp)
             continue
 
         elecco2 = noncampelecgridco2[iso3]
 
-        offgrid_expenditure = list()
-        offgrid_capital_costs = list()
-        offgrid_co2_emissions = list()
-        solid_expenditure = list()
-        solid_capital_costs = list()
-        solid_co2_emissions = list()
+        res = [iso3, camp]
         for tier in model.tiers:
-            oe, oc, oco2 = model.calculate_camp_offgrid_lighting(tier, number_hh, campgroup_camptypes,
+            oe, oc, oco2 = model.calculate_camp_offgrid_lighting(tier, number_hh, region_camptypes,
                                                                  lightingoffgridcost, elecgriddirectenergy, elecco2)
-            offgrid_expenditure.append(oe)
-            offgrid_capital_costs.append(oc)
-            offgrid_co2_emissions.append(oco2)
-            se, sc, sco2 = model.calculate_camp_solid_cooking(tier, number_hh, campgroup_camptypes, cookingsolidcost)
-            solid_expenditure.append(se)
-            solid_capital_costs.append(sc)
-            solid_co2_emissions.append(sco2)
-        res = dict()
-        res['offgrid_expenditure'] = offgrid_expenditure
-        res['offgrid_capital_costs'] = offgrid_capital_costs
-        res['offgrid_co2_emissions'] = offgrid_co2_emissions
-        res['solid_expenditure'] = solid_expenditure
-        res['solid_capital_costs'] = solid_capital_costs
-        res['solid_co2_emissions'] = solid_co2_emissions
+            se, sc, sco2 = model.calculate_camp_solid_cooking(tier, number_hh, region_camptypes, cookingsolidcost)
+            res.extend([oe, oc, oco2, se, sc, sco2])
 
-        camp_results[camp] = res
+        results[pop_types.index('Camp')].append(res)
 
-    small_camp_results = dict()
-    for camp_group in sorted(smallcamps):
-        population = smallcamps[camp_group]
+    for region in sorted(smallcamps):
+        population = smallcamps[region]
         if not population or population == '-':
             continue
         number_hh = model.calculate_number_hh(population)
-        campgroup_camptypes = small_camptypes.get(camp_group)
-        if campgroup_camptypes is None:
-            logger.info('Missing camp group %s in small camp types!' % camp_group)
+        region_camptypes = small_camptypes.get(region)
+        if region_camptypes is None:
+            logger.info('Missing camp group %s in small camp types!' % region)
             continue
 
-        elecco2 = small_camps_elecgridco2[camp_group]
+        elecco2 = small_camps_elecgridco2[region]
         if not elecco2 or elecco2 == '-':
             elecco2 = 0
 
-        offgrid_expenditure = list()
-        offgrid_capital_costs = list()
-        offgrid_co2_emissions = list()
-        solid_expenditure = list()
-        solid_capital_costs = list()
-        solid_co2_emissions = list()
+        res = [region]
         for tier in model.tiers:
-            oe, oc, oco2 = model.calculate_camp_offgrid_lighting(tier, number_hh, campgroup_camptypes,
+            oe, oc, oco2 = model.calculate_camp_offgrid_lighting(tier, number_hh, region_camptypes,
                                                                  lightingoffgridcost, elecgriddirectenergy, elecco2)
-            if oe is not None:
-                offgrid_expenditure.append(oe)
-                offgrid_capital_costs.append(oc)
-                offgrid_co2_emissions.append(oco2)
-            se, sc, sco2 = model.calculate_camp_solid_cooking(tier, number_hh, campgroup_camptypes, cookingsolidcost)
-            if se is not None:
-                solid_expenditure.append(se)
-                solid_capital_costs.append(sc)
-                solid_co2_emissions.append(sco2)
-        res = dict()
-        res['offgrid_expenditure'] = offgrid_expenditure
-        res['offgrid_capital_costs'] = offgrid_capital_costs
-        res['offgrid_co2_emissions'] = offgrid_co2_emissions
-        res['solid_expenditure'] = solid_expenditure
-        res['solid_capital_costs'] = solid_capital_costs
-        res['solid_co2_emissions'] = solid_co2_emissions
+            se, sc, sco2 = model.calculate_camp_solid_cooking(tier, number_hh, region_camptypes, cookingsolidcost)
+            res.extend([oe, oc, oco2, se, sc, sco2])
 
-        small_camp_results[camp_group] = res
+        results[pop_types.index('Small Camp')].append(res)
 
-        # logger.info('Number of datasets to upload: %d' % len(countriesdata))
-    # for countrydata in countriesdata:
-    #     dataset, showcase = generate_dataset_and_showcase(downloader, countrydata)
-    #     dataset.update_from_yaml()
-    #     dataset.create_in_hdx()
-    #     showcase.create_in_hdx()
-    #     showcase.add_dataset(dataset)
+    folder = gettempdir()
+    for i, pop_type in enumerate(pop_types):
+        resource = resources[i]
+        file_to_upload = output_csv(headers[i], results[i], folder, resource['name'])
+        resource.set_file_to_upload(file_to_upload)
+
+    dataset.update_from_yaml()
+    dataset.create_in_hdx()
+    showcase.create_in_hdx()
+    showcase.add_dataset(dataset)
+
 
 if __name__ == '__main__':
-    facade(main, hdx_site='prod', project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='feature', project_config_yaml=join('config', 'project_configuration.yml'))

@@ -1,6 +1,6 @@
 license_id: "cc-by-igo"
 subnational: 1  # has to be 0 or 1
-notes: ""
+notes: "The current literature on energy access highlights energy deprivation on a regional or country basis, but frequently neglects those outside of national energy agendas such as refugees and displaced people. To fill this gap and to help inform future analysis, we used an end-use accounting model for energy consumption for cooking and lighting by displaced populations to create this dataset. The data includes three high-level scenarios for improving access to energy for cooking and lighting. There is a strong human, economic, and environmental case to be made for improving energy access for refugees and displaced people, and for recognising energy as a core concern within humanitarian relief efforts."
 caveats: ""
 methodology: "Registry"
 dataset_source: "Chatham House"

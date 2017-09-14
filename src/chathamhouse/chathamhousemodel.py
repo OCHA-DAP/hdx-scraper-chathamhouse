@@ -123,7 +123,7 @@ class ChathamHouseModel:
                                         elecco2):
         camplightingoffgridtype = camptypes['Lighting OffGrid %s' % tier]
         if not camplightingoffgridtype:
-            return None, None, None
+            return '', '', ''
         return self.calculate_offgrid_lighting(tier, hh_offgrid, camplightingoffgridtype, lightingoffgridcost,
                                                elecgriddirectenergy, elecco2)
 
@@ -163,5 +163,5 @@ class ChathamHouseModel:
                                      cookingsolidcost):
         campcookingsolidtype = camptypes['Cooking Solid %s' % tier]
         if not campcookingsolidtype:
-            return None, None, None
+            return '', '', ''
         return self.calculate_solid_cooking(tier, hh_no_nonsolid_access, campcookingsolidtype, cookingsolidcost)

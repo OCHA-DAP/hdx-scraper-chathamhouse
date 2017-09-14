@@ -2,8 +2,13 @@ import urllib.request
 from io import BytesIO
 from zipfile import ZipFile
 
+from hdx.data.dataset import Dataset
+from hdx.data.resource import Resource
+from hdx.data.showcase import Showcase
 from hdx.utilities.dictandlist import integer_value_convert
 from hdx.utilities.location import Location
+from os.path import join
+from slugify import slugify
 from tabulator import Stream
 
 
@@ -146,3 +151,50 @@ def get_slumratios(url):
                     slumratios[iso3] = float(value) / 100.0
         stream.close()
         return slumratios
+
+
+def generate_dataset_and_showcase(pop_types, today):
+    title = 'Energy consumption of refugees and displaced people'
+    slugified_name = slugify(title.lower())
+
+    dataset = Dataset({
+        'name': slugified_name,
+        'title': title,
+    })
+    dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
+    dataset.set_organization('hdx')
+    dataset.set_dataset_date_from_datetime(today)
+    dataset.set_expected_update_frequency('Every month')
+    dataset.add_other_location('world')
+
+    tags = ['HXL', 'energy', 'refugees', 'idps']
+    dataset.add_tags(tags)
+
+    for pop_type in pop_types:
+        resource_data = {
+            'name': '%s_consumption.csv' % pop_type.lower().replace(' ', '_'),
+            'description': '%s %s' % (pop_type, title.lower()),
+            'format': 'csv'
+        }
+        resource = Resource(resource_data)
+        dataset.add_update_resource(resource)
+
+    showcase = Showcase({
+        'name': '%s-showcase' % slugified_name,
+        'title': 'Energy services for refugees and displaced people',
+        'notes': 'Click the image on the right to go to the energy services model',
+        'url': 'http://www.sciencedirect.com/science/article/pii/S2211467X16300396',
+        'image_url': 'https://www.chathamhouse.org/sites/files/chathamhouse/styles/large_square_/public/images/Combo_large_LCP%20%282%29.jpg?itok=0HgBOAyu'
+    })
+    showcase.add_tags(tags)
+
+    return dataset, showcase
+
+
+def output_csv(headers, data, folder, filename):
+    filepath = join(folder, filename)
+    stream = Stream(data, headers=headers)
+    stream.open()
+    stream.save(filepath, format='csv')
+    stream.close()
+    return filepath
