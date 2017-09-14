@@ -180,14 +180,17 @@ def main():
 
     small_camp_results = dict()
     for camp_group in sorted(smallcamps):
-        number_hh = model.calculate_number_hh(smallcamps[camp_group])
+        population = smallcamps[camp_group]
+        if not population or population == '-':
+            continue
+        number_hh = model.calculate_number_hh(population)
         campgroup_camptypes = small_camptypes.get(camp_group)
         if campgroup_camptypes is None:
             logger.info('Missing camp group %s in small camp types!' % camp_group)
             continue
 
         elecco2 = small_camps_elecgridco2[camp_group]
-        if not elecco2:
+        if not elecco2 or elecco2 == '-':
             elecco2 = 0
 
         offgrid_expenditure = list()
