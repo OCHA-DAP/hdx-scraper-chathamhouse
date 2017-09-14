@@ -4,13 +4,13 @@
 Unit tests for Chatham House Model.
 
 '''
-import pytest
 from os.path import join
 
+import pytest
 from hdx.utilities.downloader import Download
 
-from chathamhouse_data import get_camptypes
-from chathamhouse_model import ChathamHouseModel
+from chathamhouse.chathamhousedata import get_camptypes
+from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 
 class TestChathamHouseModel:

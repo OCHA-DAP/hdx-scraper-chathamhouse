@@ -9,15 +9,16 @@ from functools import partial
 from os.path import join
 
 from hdx.data.dataset import Dataset
-from hdx.hdx_configuration import Configuration
 from hdx.facades.hdx_scraperwiki import facade
+from hdx.hdx_configuration import Configuration
 from hdx.utilities.dictandlist import avg_dicts, float_value_convert, key_value_convert, integer_value_convert
 from hdx.utilities.downloader import Download
 from hdx.utilities.location import Location
 
-from chathamhouse_model import ChathamHouseModel
-from chathamhouse_data import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, get_worldbank_series, \
+from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
+    get_worldbank_series, \
     get_slumratios, get_camptypes
+from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 logger = logging.getLogger(__name__)
 

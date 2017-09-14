@@ -4,12 +4,12 @@
 Unit tests for Chatham House data.
 
 '''
-import pytest
 from os.path import join, abspath
 
+import pytest
 import six
 
-from chathamhouse_data import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
+from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
     get_worldbank_series, get_slumratios
 from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected
 
