@@ -80,46 +80,42 @@ def main():
     smallcamps = float_value_convert(small_camp_data['Population'])
     small_camps_elecgridco2 = float_value_convert(small_camp_data['Electricity Grid CO2'])
 
+    type_descriptions = downloader.download_csv_cols_as_dicts(configuration['type_descriptions_url'])
+    lighting_type_descriptions = type_descriptions['Lighting Descriptions']
+    cooking_type_descriptions = type_descriptions['Cooking Descriptions']
+
     model = ChathamHouseModel(constants)
     pop_types = ['Urban', 'Slum', 'Rural', 'Camp', 'Small Camp']
     headers = list()
     results = list()
-
-    def add_offgrid_headers(l, hl):
-        for tier in model.tiers:
-            l[-1].extend(['Offgrid Expenditure %s' % tier, 'Offgrid Capital Costs %s' % tier,
-                            'Offgrid CO2 Emissions %s' % tier])
-            tier = tier.lower().replace(' ', '_')
-            hl.extend(['#value+offgrid+expenditure+%s' % tier, '#value+offgrid+capital_costs+%s' % tier,
-                            '#value+offgrid+co2_emissions+%s' % tier])
-
-    def add_solid_headers(l, hl):
-        for tier in model.tiers:
-            l[-1].extend(['Solid Expenditure %s' % tier, 'Solid Capital Costs %s' % tier,
-                            'Solid CO2_Emissions %s' % tier])
-            tier = tier.lower().replace(' ', '_')
-            hl.extend(['#value+solid+expenditure+%s' % tier, '#value+solid+capital_costs+%s' % tier,
-                            '#value+solid+co2_emissions+%s' % tier])
 
     for pop_type in pop_types:
         results.append(list())
         if pop_type == 'Camp':
             headers.append(['ISO3 Country Code', 'Camp Name'])
             hxlheaders = ['#country+code', '#loc+name']
-            add_offgrid_headers(headers, hxlheaders)
-            add_solid_headers(headers, hxlheaders)
         elif pop_type == 'Small Camp':
             headers.append(['Region'])
             hxlheaders = ['#region+name']
-            add_offgrid_headers(headers, hxlheaders)
-            add_solid_headers(headers, hxlheaders)
         else:
-            headers.append(['ISO3 Country Code', 'Grid Expenditure', 'Grid CO2 Emissions'])
-            hxlheaders = ['#country+code', '#value+grid+expenditure', '#value+grid+co2_emissions']
-            add_offgrid_headers(headers, hxlheaders)
-            headers[-1].extend(['Nonsolid Expenditure', 'Nonsolid CO2 Emissions'])
-            hxlheaders.extend(['#value+nonsolid+expenditure', '#value+nonsolid+co2_emissions'])
-            add_solid_headers(headers, hxlheaders)
+            headers.append(['ISO3 Country Code'])
+            hxlheaders = ['#country+code']
+        headers[-1].append('Tier')
+        hxlheaders.append('#output+tier')
+        if pop_type not in ['Camp', 'Small Camp']:
+            headers[-1].extend(['Grid Expenditure ($m/yr)', 'Grid CO2 Emissions (t/yr)'])
+            hxlheaders.extend(['#output+value+grid+expenditure', '#output+value+grid+co2_emissions'])
+        headers[-1].extend(['Offgrid Type', 'Lighting Type Description', 'Offgrid Expenditure ($m/yr)',
+                            'Offgrid Capital Costs ($m)', 'Offgrid CO2 Emissions (t/yr)'])
+        hxlheaders.extend(['#output+type+offgrid', '#output+text+lighting', '#output+value+offgrid+expenditure',
+                           '#output+value+offgrid+capital_costs', '#output+value+offgrid+co2_emissions'])
+        if pop_type not in ['Camp', 'Small Camp']:
+            headers[-1].extend(['Nonsolid Expenditure ($m/yr)', 'Nonsolid CO2 Emissions (t/yr)'])
+            hxlheaders.extend(['#output+value+nonsolid+expenditure', '#output+value+nonsolid+co2_emissions'])
+        headers[-1].extend(['Solid Type', 'Cooking Type Description', 'Solid Expenditure ($m/yr)',
+                            'Solid Capital Costs ($m)', 'Solid CO2_Emissions (t/yr)'])
+        hxlheaders.extend(['#output+type+solid', '#output+text+cooking', '#output+value+solid+expenditure',
+                           '#output+value+solid+capital_costs', '#output+value+solid+co2_emissions'])
         results[pop_types.index(pop_type)].append(hxlheaders)
 
     today = datetime.now()
@@ -154,37 +150,49 @@ def main():
                                                      country_noncampelecgridco2)
             ne, nc = model.calculate_non_solid_cooking(hh_nonsolid_access, country_cookinglpg)
 
-            res = [iso3, ge, gc, ne, nc]
             for tier in model.tiers:
-                oe, oc, oco2 = model.calculate_noncamp_offgrid_lighting(pop_type, tier, hh_offgrid,
-                                                                        noncamplightingoffgridtypes,
-                                                                        lightingoffgridcost,
-                                                                        elecgriddirectenergy,
-                                                                        country_noncampelecgridco2)
-                se, sc, sco2 = model.calculate_noncamp_solid_cooking(pop_type, tier, hh_no_nonsolid_access,
-                                                                     noncampcookingsolidtypes, cookingsolidcost)
+                baseline_target = model.get_baseline_target(tier)
+                noncamplightingoffgridtype = model.get_noncamp_type(noncamplightingoffgridtypes, pop_type, tier)
+                noncamplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                                                                noncamplightingoffgridtype)
+                oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, hh_offgrid, noncamplightingoffgridtype,
+                                                                lightingoffgridcost, elecgriddirectenergy,
+                                                                country_noncampelecgridco2)
+                noncampcookingsolidtype = model.get_noncamp_type(noncampcookingsolidtypes, pop_type, tier)
+                noncampcookingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                                                               noncamplightingoffgridtype)
+                se, sc, sco2 = model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access,
+                                                             noncampcookingsolidtype, cookingsolidcost)
 
-                res.extend([oe, oc, oco2, se, sc, sco2])
-            results[pop_types.index(pop_type.capitalize())].append(res)
+                row = [iso3, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc, oe, oc, oco2,
+                       ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
+                results[pop_types.index(pop_type.capitalize())].append(row)
 
     for camp in sorted(unhcr_camp):
         population, iso3 = unhcr_camp[camp]
         number_hh = model.calculate_number_hh(population)
-        region_camptypes = camptypes.get(camp)
-        if region_camptypes is None:
+        camp_camptypes = camptypes.get(camp)
+        if camp_camptypes is None:
             logger.info('Missing camp %s in camp types!' % camp)
             continue
 
         elecco2 = noncampelecgridco2[iso3]
 
-        res = [iso3, camp]
         for tier in model.tiers:
-            oe, oc, oco2 = model.calculate_camp_offgrid_lighting(tier, number_hh, region_camptypes,
-                                                                 lightingoffgridcost, elecgriddirectenergy, elecco2)
-            se, sc, sco2 = model.calculate_camp_solid_cooking(tier, number_hh, region_camptypes, cookingsolidcost)
-            res.extend([oe, oc, oco2, se, sc, sco2])
-
-        results[pop_types.index('Camp')].append(res)
+            baseline_target = model.get_baseline_target(tier)
+            camplightingoffgridtype = camp_camptypes['Lighting OffGrid %s' % tier]
+            camplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                                                         camplightingoffgridtype)
+            oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, number_hh, camplightingoffgridtype,
+                                                            lightingoffgridcost, elecgriddirectenergy, elecco2)
+            campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
+            campcookingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                                                        campcookingsolidtype)
+            se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
+                                                         cookingsolidcost)
+            row = [iso3, camp, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+                   campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
+            results[pop_types.index('Camp')].append(row)
 
     for region in sorted(smallcamps):
         population = smallcamps[region]
@@ -200,14 +208,27 @@ def main():
         if not elecco2 or elecco2 == '-':
             elecco2 = 0
 
-        res = [region]
         for tier in model.tiers:
-            oe, oc, oco2 = model.calculate_camp_offgrid_lighting(tier, number_hh, region_camptypes,
-                                                                 lightingoffgridcost, elecgriddirectenergy, elecco2)
-            se, sc, sco2 = model.calculate_camp_solid_cooking(tier, number_hh, region_camptypes, cookingsolidcost)
-            res.extend([oe, oc, oco2, se, sc, sco2])
-
-        results[pop_types.index('Small Camp')].append(res)
+            baseline_target = model.get_baseline_target(tier)
+            camplightingoffgridtype = region_camptypes['Lighting OffGrid %s' % tier]
+            oe, oc, oco2 = '', '', ''
+            camplightingtypedesc = ''
+            if camplightingoffgridtype:
+                camplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                                                             camplightingoffgridtype)
+                oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, number_hh, camplightingoffgridtype,
+                                                                lightingoffgridcost, elecgriddirectenergy, elecco2)
+            campcookingsolidtype = region_camptypes['Cooking Solid %s' % tier]
+            se, sc, sco2 = '', '', ''
+            campcookingtypedesc = ''
+            if campcookingsolidtype:
+                campcookingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                                                            campcookingsolidtype)
+                se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
+                                                             cookingsolidcost)
+            row = [region, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+                   campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
+            results[pop_types.index('Small Camp')].append(row)
 
     folder = gettempdir()
     for i, pop_type in enumerate(pop_types):

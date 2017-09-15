@@ -13,6 +13,7 @@ costs_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xm
 noncamp_cooking_nonsolid_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=773208334&single=true&output=csv"
 small_camptypes_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=139240279&single=true&output=csv"
 small_camps_data_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=1027341659&single=true&output=csv"
+type_descriptions_url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRWCs_9b4ZRfOv8uO_xmIThZmpCRxrgEcj-rc1ceJVw2vN_lXRjYDBUrXMXwLeDUYmdS7kvGFuZK1ys/pub?gid=1576089519&single=true&output=csv"
 
 urban_ratio_wb: "SP.URB.TOTL.IN.ZS"
 urban_elec_wb: "1.3_ACCESS.ELECTRICITY.URBAN"

@@ -83,7 +83,7 @@ class TestChathamHouseData:
         result = get_slumratios(url)
         assert result == slum_ratios_expected
 
-    def test_generate_dataset_and_showcase(self):
+    def test_generate_dataset_and_showcase(self, configuration):
         dataset, showcase = generate_dataset_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
         assert dataset == {'title': 'Energy consumption of refugees and displaced people',
                            'data_update_frequency': '30', 'maintainer': '196196be-6037-4488-8b71-d786adf4c081',

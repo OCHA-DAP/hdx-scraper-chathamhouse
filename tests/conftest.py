@@ -5,11 +5,13 @@ from os.path import join
 
 from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
+from hdx.hdx_locations import Locations
 
 
 @pytest.fixture(scope='session')
 def configuration():
     Configuration._create(hdx_read_only=True)
+    Locations.set_validlocations([{'name': 'world', 'title': 'World'}])
 
 
 @pytest.fixture(scope='session')
