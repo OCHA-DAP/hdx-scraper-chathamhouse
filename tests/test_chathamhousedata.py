@@ -4,13 +4,14 @@
 Unit tests for Chatham House data.
 
 '''
+from datetime import datetime
 from os.path import join, abspath
 
 import pytest
 import six
 
 from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
-    get_worldbank_series, get_slumratios
+    get_worldbank_series, get_slumratios, generate_dataset_and_showcase
 from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected
 
 
@@ -81,3 +82,22 @@ class TestChathamHouseData:
         url = path2url(abspath(join('tests', 'fixtures', 'MDG_Export_20170913_174700805.zip')))
         result = get_slumratios(url)
         assert result == slum_ratios_expected
+
+    def test_generate_dataset_and_showcase(self):
+        dataset, showcase = generate_dataset_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
+        assert dataset == {'title': 'Energy consumption of refugees and displaced people',
+                           'data_update_frequency': '30', 'maintainer': '196196be-6037-4488-8b71-d786adf4c081',
+                           'owner_org': 'hdx', 'dataset_date': '09/15/2017',
+                           'name': 'energy-consumption-of-refugees-and-displaced-people',
+                           'groups': [{'name': 'world'}], 'tags': [{'name': 'HXL'}, {'name': 'energy'},
+                                                                   {'name': 'refugees'}, {'name': 'idps'}]}
+        assert dataset.get_resources() == [{'name': 'urban_consumption.csv', 'format': 'csv',
+                                            'description': 'Urban energy consumption of refugees and displaced people'},
+                                           {'name': 'small_camps_consumption.csv', 'format': 'csv',
+                                            'description': 'Small camps energy consumption of refugees and displaced people'}]
+        assert showcase == {'title': 'Energy services for refugees and displaced people',
+                            'notes': 'Click the image on the right to go to the energy services model',
+                            'image_url': 'https://www.chathamhouse.org/sites/files/chathamhouse/styles/large_square_/public/images/Combo_large_LCP%20%282%29.jpg?itok=0HgBOAyu',
+                            'name': 'energy-consumption-of-refugees-and-displaced-people-showcase',
+                            'tags': [{'name': 'HXL'}, {'name': 'energy'}, {'name': 'refugees'}, {'name': 'idps'}],
+                            'url': 'http://www.sciencedirect.com/science/article/pii/S2211467X16300396'}

@@ -189,12 +189,3 @@ def generate_dataset_and_showcase(pop_types, today):
     showcase.add_tags(tags)
 
     return dataset, showcase
-
-
-def output_csv(headers, data, folder, filename):
-    filepath = join(folder, filename)
-    stream = Stream(data, headers=headers)
-    stream.open()
-    stream.save(filepath, format='csv')
-    stream.close()
-    return filepath

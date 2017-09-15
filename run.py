@@ -5,7 +5,6 @@ Top level script. Calls other functions that generate datasets that this script 
 
 """
 import logging
-from collections import OrderedDict
 from functools import partial
 from os.path import join
 
@@ -15,13 +14,14 @@ from tempfile import gettempdir
 from hdx.data.dataset import Dataset
 from hdx.facades.hdx_scraperwiki import facade
 from hdx.hdx_configuration import Configuration
-from hdx.utilities.dictandlist import avg_dicts, float_value_convert, key_value_convert, integer_value_convert
+from hdx.utilities.dictandlist import avg_dicts, float_value_convert, key_value_convert, integer_value_convert, \
+    write_list_to_csv
 from hdx.utilities.downloader import Download
 from hdx.utilities.location import Location
 
 from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
     get_worldbank_series, \
-    get_slumratios, get_camptypes, generate_dataset_and_showcase, output_csv
+    get_slumratios, get_camptypes, generate_dataset_and_showcase
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ def main():
     folder = gettempdir()
     for i, pop_type in enumerate(pop_types):
         resource = resources[i]
-        file_to_upload = output_csv(headers[i], results[i], folder, resource['name'])
+        file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
     dataset.update_from_yaml()
