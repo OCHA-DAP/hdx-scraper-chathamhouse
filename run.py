@@ -159,7 +159,7 @@ def main():
                                                                 lightingoffgridcost, elecgriddirectenergy,
                                                                 country_noncampelecgridco2)
                 noncampcookingsolidtype = model.get_noncamp_type(noncampcookingsolidtypes, pop_type, tier)
-                noncampcookingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                noncampcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
                                                                noncamplightingoffgridtype)
                 se, sc, sco2 = model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access,
                                                              noncampcookingsolidtype, cookingsolidcost)
@@ -186,7 +186,7 @@ def main():
             oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, number_hh, camplightingoffgridtype,
                                                             lightingoffgridcost, elecgriddirectenergy, elecco2)
             campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
-            campcookingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+            campcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
                                                         campcookingsolidtype)
             se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                          cookingsolidcost)
@@ -222,7 +222,7 @@ def main():
             se, sc, sco2 = '', '', ''
             campcookingtypedesc = ''
             if campcookingsolidtype:
-                campcookingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
+                campcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
                                                             campcookingsolidtype)
                 se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                              cookingsolidcost)
