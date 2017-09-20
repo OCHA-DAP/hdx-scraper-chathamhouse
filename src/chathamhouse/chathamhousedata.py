@@ -1,3 +1,12 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+Chatham House Data
+------------------
+
+Collects input data for Chatham House.
+
+"""
 import urllib.request
 from io import BytesIO
 from zipfile import ZipFile
