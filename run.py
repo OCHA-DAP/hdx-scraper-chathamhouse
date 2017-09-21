@@ -100,22 +100,22 @@ def main():
         else:
             headers.append(['ISO3 Country Code'])
             hxlheaders = ['#country+code']
-        headers[-1].append('Tier')
-        hxlheaders.append('#output+tier')
+        headers[-1].extend(['Number of Households', 'Tier'])
+        hxlheaders.extend(['#population+num+hh', '#indicator+tier'])
         if pop_type not in ['Camp', 'Small Camp']:
             headers[-1].extend(['Grid Expenditure ($m/yr)', 'Grid CO2 Emissions (t/yr)'])
-            hxlheaders.extend(['#output+value+grid+expenditure', '#output+value+grid+co2_emissions'])
+            hxlheaders.extend(['#indicator+value+grid+expenditure', '#indicator+value+grid+co2_emissions'])
         headers[-1].extend(['Offgrid Type', 'Lighting Type Description', 'Offgrid Expenditure ($m/yr)',
                             'Offgrid Capital Costs ($m)', 'Offgrid CO2 Emissions (t/yr)'])
-        hxlheaders.extend(['#output+type+offgrid', '#output+text+lighting', '#output+value+offgrid+expenditure',
-                           '#output+value+offgrid+capital_costs', '#output+value+offgrid+co2_emissions'])
+        hxlheaders.extend(['#indicator+type+offgrid', '#indicator+text+lighting', '#indicator+value+offgrid+expenditure',
+                           '#indicator+value+offgrid+capital_costs', '#indicator+value+offgrid+co2_emissions'])
         if pop_type not in ['Camp', 'Small Camp']:
             headers[-1].extend(['Nonsolid Expenditure ($m/yr)', 'Nonsolid CO2 Emissions (t/yr)'])
-            hxlheaders.extend(['#output+value+nonsolid+expenditure', '#output+value+nonsolid+co2_emissions'])
+            hxlheaders.extend(['#indicator+value+nonsolid+expenditure', '#indicator+value+nonsolid+co2_emissions'])
         headers[-1].extend(['Solid Type', 'Cooking Type Description', 'Solid Expenditure ($m/yr)',
                             'Solid Capital Costs ($m)', 'Solid CO2_Emissions (t/yr)'])
-        hxlheaders.extend(['#output+type+solid', '#output+text+cooking', '#output+value+solid+expenditure',
-                           '#output+value+solid+capital_costs', '#output+value+solid+co2_emissions'])
+        hxlheaders.extend(['#indicator+type+solid', '#indicator+text+cooking', '#indicator+value+solid+expenditure',
+                           '#indicator+value+solid+capital_costs', '#indicator+value+solid+co2_emissions'])
         results[pop_types.index(pop_type)].append(hxlheaders)
 
     today = datetime.now()
@@ -164,7 +164,7 @@ def main():
                 se, sc, sco2 = model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access,
                                                              noncampcookingsolidtype, cookingsolidcost)
 
-                row = [iso3, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc, oe, oc, oco2,
+                row = [iso3, number_hh, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc, oe, oc, oco2,
                        ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
                 results[pop_types.index(pop_type.capitalize())].append(row)
 
@@ -190,7 +190,7 @@ def main():
                                                         campcookingsolidtype)
             se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                          cookingsolidcost)
-            row = [iso3, camp, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+            row = [iso3, camp, number_hh, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
             results[pop_types.index('Camp')].append(row)
 
@@ -226,7 +226,7 @@ def main():
                                                             campcookingsolidtype)
                 se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                              cookingsolidcost)
-            row = [region, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+            row = [region, number_hh, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
             results[pop_types.index('Small Camp')].append(row)
 
