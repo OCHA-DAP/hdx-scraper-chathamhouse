@@ -87,7 +87,7 @@ class TestChathamHouseData:
         dataset, showcase = generate_dataset_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
         assert dataset == {'title': 'Energy consumption of refugees and displaced people',
                            'data_update_frequency': '30', 'maintainer': '196196be-6037-4488-8b71-d786adf4c081',
-                           'owner_org': 'hdx', 'dataset_date': '09/15/2017',
+                           'owner_org': '0c6bf79f-504c-4ba5-9fdf-c8cc893c8b2f', 'dataset_date': '09/15/2017',
                            'name': 'energy-consumption-of-refugees-and-displaced-people',
                            'groups': [{'name': 'world'}], 'tags': [{'name': 'HXL'}, {'name': 'energy'},
                                                                    {'name': 'refugees'}, {'name': 'idps'}]}

@@ -171,7 +171,7 @@ def generate_dataset_and_showcase(pop_types, today):
         'title': title,
     })
     dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
-    dataset.set_organization('hdx')
+    dataset.set_organization('0c6bf79f-504c-4ba5-9fdf-c8cc893c8b2f')
     dataset.set_dataset_date_from_datetime(today)
     dataset.set_expected_update_frequency('Every month')
     dataset.add_other_location('world')
