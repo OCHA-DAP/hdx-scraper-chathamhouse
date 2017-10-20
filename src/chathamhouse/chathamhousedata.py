@@ -15,23 +15,12 @@ from hdx.data.dataset import Dataset
 from hdx.data.resource import Resource
 from hdx.data.showcase import Showcase
 from hdx.utilities.dictandlist import integer_value_convert
-from hdx.utilities.location import Location
-from os.path import join
+from hdx.location.country import Country
 from slugify import slugify
 from tabulator import Stream
 
 
-def get_worldbank_iso2_to_iso3(json_url, downloader):
-    response = downloader.download(json_url)
-    json = response.json()
-    iso2iso3 = dict()
-    for country in json[1]:
-        if country['region']['value'] != 'Aggregates':
-            iso2iso3[country['iso2Code']] = country['id'].lower()
-    return iso2iso3
-
-
-def get_camp_non_camp_populations(noncamp_types, camp_types, datasets):
+def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_types, datasets):
     noncamp_types = noncamp_types.split(',')
     camp_types = camp_types.split(',')
     dataset_unhcr = None
@@ -52,11 +41,11 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, datasets):
     prev_row = None
     unhcr_non_camp = dict()
     unhcr_camp = dict()
-    stream = Stream(url, sheet=16)
+    stream = Stream(url, sheet='Tab15')
     stream.open()
     for row in stream.iter():
         country = row[country_ind]
-        iso3 = Location.get_iso3_country_code(country)
+        iso3 = Country.get_iso3_country_code(country)
         if iso3 is not None:
             break
         prev_row = row
@@ -78,21 +67,29 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, datasets):
                 break
             except ValueError:
                 pass
-    accommodation_type = row[accommodation_ind].lower()
+    campname = row[location_ind]
+    accommodation_type = camp_accommodation_types.get(campname)
+    if accommodation_type is None:
+        accommodation_type = row[accommodation_ind]
+    accommodation_type = accommodation_type.lower()
     for noncamp_type in noncamp_types:
         if noncamp_type in accommodation_type:
             unhcr_non_camp[iso3] = population
             break
     for camp_type in camp_types:
         if camp_type in accommodation_type:
-            unhcr_camp[row[location_ind]] = population, iso3
+            unhcr_camp[campname] = population, iso3
             break
     for row in stream.iter():
         country = row[country_ind]
-        iso3 = Location.get_iso3_country_code(country)
+        iso3 = Country.get_iso3_country_code(country)
         if iso3 is None:
             continue
-        accommodation_type = row[accommodation_ind].lower()
+        campname = row[location_ind]
+        accommodation_type = camp_accommodation_types.get(campname)
+        if accommodation_type is None:
+            accommodation_type = row[accommodation_ind]
+        accommodation_type = accommodation_type.lower()
         for noncamp_type in noncamp_types:
             if noncamp_type in accommodation_type:
                 population = unhcr_non_camp.get(iso3)
@@ -106,7 +103,7 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, datasets):
                 break
         for camp_type in camp_types:
             if camp_type in accommodation_type:
-                unhcr_camp[row[location_ind]] = population, iso3
+                unhcr_camp[campname] = population, iso3
                 break
     stream.close()
     return unhcr_non_camp, unhcr_camp
@@ -119,12 +116,12 @@ def get_camptypes(url, downloader):
     return camptypes
 
 
-def get_worldbank_series(json_url, downloader, wbiso2iso3):
+def get_worldbank_series(json_url, downloader):
     response = downloader.download(json_url)
     json = response.json()
     data = dict()
     for countrydata in json[1]:
-        iso3 = wbiso2iso3.get(countrydata['country']['id'])
+        iso3 = Country.get_iso3_from_iso2(countrydata['country']['id'])
         if iso3 is not None:
             value = countrydata.get('value')
             if value:
@@ -151,7 +148,7 @@ def get_slumratios(url):
         for row in stream.iter(keyed=True):
             if not row:
                 break
-            iso3 = Location.get_iso3_country_code(row['Country'])
+            iso3 = Country.get_iso3_country_code(row['Country'])
             if iso3 is None:
                 continue
             for year in years:

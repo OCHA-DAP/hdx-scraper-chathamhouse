@@ -10,7 +10,7 @@ from os.path import join, abspath
 import pytest
 import six
 
-from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
+from chathamhouse.chathamhousedata import get_camp_non_camp_populations, \
     get_worldbank_series, get_slumratios, generate_dataset_and_showcase
 from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected
 
@@ -61,19 +61,16 @@ class TestChathamHouseData:
                 return response
         return Download()
 
-    def test_get_worldbank_iso2_to_iso3(self, downloader):
-        result = get_worldbank_iso2_to_iso3('http://haha/countries?format=json&per_page=10000', downloader)
-        assert result == {'AF': 'afg', 'AO': 'ago', 'AW': 'abw'}
-
     def test_get_camp_non_camp_populations(self, datasets):
-        unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception', datasets)
+        unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
+                                                                   {'Corum': 'Planned/managed camp'}, datasets)
         assert unhcr_non_camp == unhcr_non_camp_expected
         assert unhcr_camp == unhcr_camp_expected
 
     def test_get_worldbank_series(self, downloader):
         result = get_worldbank_series('http://lala/countries/all/indicators/SP.URB.TOTL.IN.ZS?MRV=1&format=json&per_page=10000',
-                                      downloader, {'AT': 'aut', 'ZW': 'zwe'})
-        assert result == {'aut': 0.66032, 'zwe': 0.32277}
+                                      downloader)
+        assert result == {'AUT': 0.66032, 'ZWE': 0.32277}
 
     def test_get_slumratios(self):
         def path2url(path):

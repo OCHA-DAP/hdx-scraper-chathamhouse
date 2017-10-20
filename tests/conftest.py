@@ -6,12 +6,18 @@ from os.path import join
 from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.hdx_locations import Locations
+from hdx.location.country import Country
 
 
 @pytest.fixture(scope='session')
 def configuration():
     Configuration._create(hdx_read_only=True)
     Locations.set_validlocations([{'name': 'world', 'title': 'World'}])
+
+
+@pytest.fixture(scope='session', autouse=True)
+def country():
+    Country.countriesdata(use_live=False)
 
 
 @pytest.fixture(scope='session')

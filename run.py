@@ -17,10 +17,9 @@ from hdx.hdx_configuration import Configuration
 from hdx.utilities.dictandlist import avg_dicts, float_value_convert, key_value_convert, integer_value_convert, \
     write_list_to_csv
 from hdx.utilities.downloader import Download
-from hdx.utilities.location import Location
+from hdx.location.country import Country
 
-from chathamhouse.chathamhousedata import get_worldbank_iso2_to_iso3, get_camp_non_camp_populations, \
-    get_worldbank_series, \
+from chathamhouse.chathamhousedata import get_camp_non_camp_populations, get_worldbank_series, \
     get_slumratios, get_camptypes, generate_dataset_and_showcase
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
@@ -34,17 +33,17 @@ def main():
     constants = float_value_convert(downloader.download_csv_key_value(configuration['constants_url']))
     constants['Lighting Grid Tier'] = int(constants['Lighting Grid Tier'])
 
-    wbiso2iso3 = get_worldbank_iso2_to_iso3(configuration['wb_countries_url'], downloader)
+    camp_accommodation_types = downloader.download_csv_key_value(configuration['camp_accommodation_tyes_url'])
     world_bank_url = configuration['world_bank_url']
-    urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader, wbiso2iso3)
+    urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
     slumratios = get_slumratios(configuration['slum_ratio_url'])
 
     noncamp_elec_access = dict()
-    noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader, wbiso2iso3)
-    noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader, wbiso2iso3)
+    noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
+    noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader)
     noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Urban'], noncamp_elec_access['Rural'])
 
-    get_iso3 = partial(Location.get_iso3_country_code, exception=ValueError)
+    get_iso3 = partial(Country.get_iso3_country_code, exception=ValueError)
 
     ieadata = downloader.download_csv_cols_as_dicts(configuration['iea_data_url'])
     elecappliances = key_value_convert(ieadata['Electrical Appliances'], keyfn=get_iso3, valuefn=float,
@@ -74,7 +73,7 @@ def main():
 
     datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
     unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations(constants['Non Camp Types'], constants['Camp Types'],
-                                                               datasets)
+                                                               camp_accommodation_types, datasets)
     small_camptypes = get_camptypes(configuration['small_camptypes_url'], downloader)
     small_camp_data = downloader.download_csv_cols_as_dicts(configuration['small_camps_data_url'])
     smallcamps = float_value_convert(small_camp_data['Population'])
@@ -123,6 +122,8 @@ def main():
     resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
+        if iso3 == 'pak':
+            print(iso3)
         number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
         if number_hh_by_pop_type is None:
             continue
