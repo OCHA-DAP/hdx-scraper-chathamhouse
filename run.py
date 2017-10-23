@@ -122,8 +122,6 @@ def main():
     resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
-        if iso3 == 'pak':
-            print(iso3)
         number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
         if number_hh_by_pop_type is None:
             continue

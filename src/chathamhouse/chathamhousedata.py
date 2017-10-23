@@ -90,14 +90,15 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
         if accommodation_type is None:
             accommodation_type = row[accommodation_ind]
         accommodation_type = accommodation_type.lower()
+        population = int(row[population_ind])
         for noncamp_type in noncamp_types:
             if noncamp_type in accommodation_type:
-                population = unhcr_non_camp.get(iso3)
-                if not population:
-                    population = 0
+                country_population = unhcr_non_camp.get(iso3)
+                if not country_population:
+                    country_population = 0
                 try:
-                    population += int(row[population_ind])
-                    unhcr_non_camp[iso3] = population
+                    country_population += population
+                    unhcr_non_camp[iso3] = country_population
                 except ValueError:
                     continue
                 break

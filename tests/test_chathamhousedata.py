@@ -6,6 +6,7 @@ Unit tests for Chatham House data.
 '''
 from datetime import datetime
 from os.path import join, abspath
+from pprint import pprint
 
 import pytest
 import six
@@ -65,6 +66,7 @@ class TestChathamHouseData:
         unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
                                                                    {'Corum': 'Planned/managed camp'}, datasets)
         assert unhcr_non_camp == unhcr_non_camp_expected
+        pprint(unhcr_camp)
         assert unhcr_camp == unhcr_camp_expected
 
     def test_get_worldbank_series(self, downloader):
