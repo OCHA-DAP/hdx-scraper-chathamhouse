@@ -29,59 +29,59 @@ logger = logging.getLogger(__name__)
 def main():
     """Generate dataset and create it in HDX"""
     configuration = Configuration.read()
-    downloader = Download()
-    constants = float_value_convert(downloader.download_csv_key_value(configuration['constants_url']))
-    constants['Lighting Grid Tier'] = int(constants['Lighting Grid Tier'])
+    with Download() as downloader:
+        constants = float_value_convert(downloader.download_csv_key_value(configuration['constants_url']))
+        constants['Lighting Grid Tier'] = int(constants['Lighting Grid Tier'])
 
-    camp_accommodation_types = downloader.download_csv_key_value(configuration['camp_accommodation_tyes_url'])
-    world_bank_url = configuration['world_bank_url']
-    urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
-    slumratios = get_slumratios(configuration['slum_ratio_url'])
+        camp_accommodation_types = downloader.download_csv_key_value(configuration['camp_accommodation_tyes_url'])
+        world_bank_url = configuration['world_bank_url']
+        urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
+        slumratios = get_slumratios(configuration['slum_ratio_url'])
 
-    noncamp_elec_access = dict()
-    noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
-    noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader)
-    noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Urban'], noncamp_elec_access['Rural'])
+        noncamp_elec_access = dict()
+        noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
+        noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader)
+        noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Urban'], noncamp_elec_access['Rural'])
 
-    get_iso3 = partial(Country.get_iso3_country_code, exception=ValueError)
+        get_iso3 = partial(Country.get_iso3_country_code, exception=ValueError)
 
-    ieadata = downloader.download_csv_cols_as_dicts(configuration['iea_data_url'])
-    elecappliances = key_value_convert(ieadata['Electrical Appliances'], keyfn=get_iso3, valuefn=float,
-                                       dropfailedkeys=True)
-    cookinglpg = key_value_convert(ieadata['Cooking LPG'], keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
-    elecgridtiers = key_value_convert(downloader.download_csv_key_value(configuration['elec_grid_tiers_url']), keyfn=int, valuefn=float)
-    elecgriddirectenergy = float_value_convert(downloader.download_csv_key_value(configuration['elec_grid_direct_energy_url']))
-    noncampelecgridco2 = key_value_convert(downloader.download_csv_key_value(configuration['noncamp_elec_grid_co2_url']),
-                                keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
+        ieadata = downloader.download_csv_cols_as_dicts(configuration['iea_data_url'])
+        elecappliances = key_value_convert(ieadata['Electrical Appliances'], keyfn=get_iso3, valuefn=float,
+                                           dropfailedkeys=True)
+        cookinglpg = key_value_convert(ieadata['Cooking LPG'], keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
+        elecgridtiers = key_value_convert(downloader.download_csv_key_value(configuration['elec_grid_tiers_url']), keyfn=int, valuefn=float)
+        elecgriddirectenergy = float_value_convert(downloader.download_csv_key_value(configuration['elec_grid_direct_energy_url']))
+        noncampelecgridco2 = key_value_convert(downloader.download_csv_key_value(configuration['noncamp_elec_grid_co2_url']),
+                                    keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
 
-    noncamptypes = downloader.download_csv_cols_as_dicts(configuration['noncamp_types_url'])
-    noncamplightingoffgridtypes = integer_value_convert(noncamptypes['Lighting OffGrid'])
-    noncampcookingsolidtypes = integer_value_convert(noncamptypes['Cooking Solid'])
+        noncamptypes = downloader.download_csv_cols_as_dicts(configuration['noncamp_types_url'])
+        noncamplightingoffgridtypes = integer_value_convert(noncamptypes['Lighting OffGrid'])
+        noncampcookingsolidtypes = integer_value_convert(noncamptypes['Cooking Solid'])
 
-    camptypes = get_camptypes(configuration['camp_types_url'], downloader)
+        camptypes = get_camptypes(configuration['camp_types_url'], downloader)
 
-    costs = downloader.download_csv_cols_as_dicts(configuration['costs_url'])
-    lightingoffgridcost = float_value_convert(costs['Lighting OffGrid'])
-    cookingsolidcost = float_value_convert(costs['Cooking Solid'])
+        costs = downloader.download_csv_cols_as_dicts(configuration['costs_url'])
+        lightingoffgridcost = float_value_convert(costs['Lighting OffGrid'])
+        cookingsolidcost = float_value_convert(costs['Cooking Solid'])
 
-    noncamp_nonsolid_access = downloader.download_csv_cols_as_dicts(configuration['noncamp_cooking_nonsolid_url'])
-    noncamp_nonsolid_access['Urban'] = key_value_convert(noncamp_nonsolid_access['Urban'],
-                                                 keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
-    noncamp_nonsolid_access['Rural'] = key_value_convert(noncamp_nonsolid_access['Rural'],
-                                                 keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
-    noncamp_nonsolid_access['Slum'] = noncamp_nonsolid_access['Urban']
+        noncamp_nonsolid_access = downloader.download_csv_cols_as_dicts(configuration['noncamp_cooking_nonsolid_url'])
+        noncamp_nonsolid_access['Urban'] = key_value_convert(noncamp_nonsolid_access['Urban'],
+                                                     keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
+        noncamp_nonsolid_access['Rural'] = key_value_convert(noncamp_nonsolid_access['Rural'],
+                                                     keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
+        noncamp_nonsolid_access['Slum'] = noncamp_nonsolid_access['Urban']
 
-    datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
-    unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations(constants['Non Camp Types'], constants['Camp Types'],
-                                                               camp_accommodation_types, datasets)
-    small_camptypes = get_camptypes(configuration['small_camptypes_url'], downloader)
-    small_camp_data = downloader.download_csv_cols_as_dicts(configuration['small_camps_data_url'])
-    smallcamps = float_value_convert(small_camp_data['Population'])
-    small_camps_elecgridco2 = float_value_convert(small_camp_data['Electricity Grid CO2'])
+        datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
+        unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations(constants['Non Camp Types'], constants['Camp Types'],
+                                                                   camp_accommodation_types, datasets)
+        small_camptypes = get_camptypes(configuration['small_camptypes_url'], downloader)
+        small_camp_data = downloader.download_csv_cols_as_dicts(configuration['small_camps_data_url'])
+        smallcamps = float_value_convert(small_camp_data['Population'])
+        small_camps_elecgridco2 = float_value_convert(small_camp_data['Electricity Grid CO2'])
 
-    type_descriptions = downloader.download_csv_cols_as_dicts(configuration['type_descriptions_url'])
-    lighting_type_descriptions = type_descriptions['Lighting Descriptions']
-    cooking_type_descriptions = type_descriptions['Cooking Descriptions']
+        type_descriptions = downloader.download_csv_cols_as_dicts(configuration['type_descriptions_url'])
+        lighting_type_descriptions = type_descriptions['Lighting Descriptions']
+        cooking_type_descriptions = type_descriptions['Cooking Descriptions']
 
     model = ChathamHouseModel(constants)
     pop_types = ['Urban', 'Slum', 'Rural', 'Camp', 'Small Camp']
