@@ -7,6 +7,7 @@ Chatham House Data
 Collects input data for Chatham House.
 
 """
+import logging
 import urllib.request
 from io import BytesIO
 from zipfile import ZipFile
@@ -18,6 +19,9 @@ from hdx.utilities.dictandlist import integer_value_convert
 from hdx.location.country import Country
 from slugify import slugify
 from tabulator import Stream
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_types, datasets):
@@ -36,14 +40,15 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
     url = dataset_unhcr.get_resources()[0]['url']
     country_ind = 0  # assume first column contains country
     iso3 = None
-    country = None
     row = None
     prev_row = None
     unhcr_non_camp = dict()
     unhcr_camp = dict()
+    unhcr_camp_excluded = dict()
     stream = Stream(url, sheet='Tab15')
     stream.open()
-    for row in stream.iter():
+    rowiter = stream.iter()
+    for row in rowiter:
         country = row[country_ind]
         iso3 = Country.get_iso3_country_code(country)
         if iso3 is not None:
@@ -72,25 +77,45 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
     if accommodation_type is None:
         accommodation_type = row[accommodation_ind]
     accommodation_type = accommodation_type.lower()
+    found = False
+    for camp_type in camp_types:
+        if camp_type in accommodation_type:
+            unhcr_camp[campname] = population, iso3
+            found = True
+            break
     for noncamp_type in noncamp_types:
         if noncamp_type in accommodation_type:
             unhcr_non_camp[iso3] = population
             break
-    for camp_type in camp_types:
-        if camp_type in accommodation_type:
-            unhcr_camp[campname] = population, iso3
-            break
-    for row in stream.iter():
+    if not found:
+        unhcr_camp_excluded[campname] = accommodation_type
+    for row in rowiter:
         country = row[country_ind]
-        iso3 = Country.get_iso3_country_code(country)
-        if iso3 is None:
+        if not country:
             continue
+        if 'NOTES' in country.upper():
+            break
+        iso3, match = Country.get_iso3_country_code_fuzzy(country)
+        if iso3 is None:
+            logger.warning('Country %s could not be matched to ISO3 code!' % country)
+            continue
+        else:
+            if match is False:
+                logger.info('Matched %s to ISO3: %s!' % (country, iso3))
         campname = row[location_ind]
         accommodation_type = camp_accommodation_types.get(campname)
         if accommodation_type is None:
             accommodation_type = row[accommodation_ind]
         accommodation_type = accommodation_type.lower()
         population = int(row[population_ind])
+        found = False
+        for camp_type in camp_types:
+            if camp_type in accommodation_type:
+                unhcr_camp[campname] = population, iso3
+                found = True
+                break
+        if not found:
+            unhcr_camp_excluded[campname] = accommodation_type
         for noncamp_type in noncamp_types:
             if noncamp_type in accommodation_type:
                 country_population = unhcr_non_camp.get(iso3)
@@ -102,12 +127,8 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
                 except ValueError:
                     continue
                 break
-        for camp_type in camp_types:
-            if camp_type in accommodation_type:
-                unhcr_camp[campname] = population, iso3
-                break
     stream.close()
-    return unhcr_non_camp, unhcr_camp
+    return unhcr_non_camp, unhcr_camp, unhcr_camp_excluded
 
 
 def get_camptypes(url, downloader):

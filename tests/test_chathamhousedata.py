@@ -63,8 +63,9 @@ class TestChathamHouseData:
         return Download()
 
     def test_get_camp_non_camp_populations(self, datasets):
-        unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
-                                                                   {'Corum': 'Planned/managed camp'}, datasets)
+        unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
+            get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
+                                          {'Corum': 'Planned/managed camp'}, datasets)
         assert unhcr_non_camp == unhcr_non_camp_expected
         pprint(unhcr_camp)
         assert unhcr_camp == unhcr_camp_expected

@@ -26,6 +26,13 @@ from chathamhouse.chathamhousemodel import ChathamHouseModel
 logger = logging.getLogger(__name__)
 
 
+def get_iso3(name):
+    iso3, match = Country.get_iso3_country_code_fuzzy(name, exception=ValueError)
+    if not match:
+        logger.info('Country %s matched to ISO3: %s!' % (name, iso3))
+    return iso3
+
+
 def main():
     """Generate dataset and create it in HDX"""
     configuration = Configuration.read()
@@ -34,6 +41,12 @@ def main():
         constants['Lighting Grid Tier'] = int(constants['Lighting Grid Tier'])
 
         camp_accommodation_types = downloader.download_csv_key_value(configuration['camp_accommodation_tyes_url'])
+        datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
+        unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = get_camp_non_camp_populations(constants['Non Camp Types'],
+                                                                                        constants['Camp Types'],
+                                                                                        camp_accommodation_types,
+                                                                                        datasets)
+
         world_bank_url = configuration['world_bank_url']
         urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
         slumratios = get_slumratios(configuration['slum_ratio_url'])
@@ -42,8 +55,6 @@ def main():
         noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
         noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader)
         noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Urban'], noncamp_elec_access['Rural'])
-
-        get_iso3 = partial(Country.get_iso3_country_code, exception=ValueError)
 
         ieadata = downloader.download_csv_cols_as_dicts(configuration['iea_data_url'])
         elecappliances = key_value_convert(ieadata['Electrical Appliances'], keyfn=get_iso3, valuefn=float,
@@ -71,9 +82,6 @@ def main():
                                                      keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
         noncamp_nonsolid_access['Slum'] = noncamp_nonsolid_access['Urban']
 
-        datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
-        unhcr_non_camp, unhcr_camp = get_camp_non_camp_populations(constants['Non Camp Types'], constants['Camp Types'],
-                                                                   camp_accommodation_types, datasets)
         small_camptypes = get_camptypes(configuration['small_camptypes_url'], downloader)
         small_camp_data = downloader.download_csv_cols_as_dicts(configuration['small_camps_data_url'])
         smallcamps = float_value_convert(small_camp_data['Population'])
@@ -91,14 +99,14 @@ def main():
     for pop_type in pop_types:
         results.append(list())
         if pop_type == 'Camp':
-            headers.append(['ISO3 Country Code', 'Camp Name'])
-            hxlheaders = ['#country+code', '#loc+name']
+            headers.append(['ISO3 Country Code', 'Country Name', 'Camp Name'])
+            hxlheaders = ['#country+code', '#country+name', '#loc+name']
         elif pop_type == 'Small Camp':
             headers.append(['Region'])
             hxlheaders = ['#region+name']
         else:
-            headers.append(['ISO3 Country Code'])
-            hxlheaders = ['#country+code']
+            headers.append(['ISO3 Country Code', 'Country Name'])
+            hxlheaders = ['#country+code', '#country+name']
         headers[-1].extend(['Number of Households', 'Tier'])
         hxlheaders.extend(['#population+num+hh', '#indicator+tier'])
         if pop_type not in ['Camp', 'Small Camp']:
@@ -163,17 +171,30 @@ def main():
                 se, sc, sco2 = model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access,
                                                              noncampcookingsolidtype, cookingsolidcost)
 
-                row = [iso3, number_hh, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc, oe, oc, oco2,
-                       ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
+                cn = Country.get_country_name_from_iso3(iso3)
+                row = [iso3, cn, number_hh, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc,
+                       oe, oc, oco2, ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
                 results[pop_types.index(pop_type.capitalize())].append(row)
 
-    for camp in sorted(unhcr_camp):
-        population, iso3 = unhcr_camp[camp]
-        number_hh = model.calculate_number_hh(population)
-        camp_camptypes = camptypes.get(camp)
-        if camp_camptypes is None:
-            logger.info('Missing camp %s in camp types!' % camp)
+    for camp in sorted(camptypes):
+        result = unhcr_camp.get(camp)
+        if result is None:
+            firstpart = camp.split(':')[0].strip()
+            for campname in sorted(unhcr_camp):
+                if firstpart in campname:
+                    result = unhcr_camp[campname]
+                    logger.info('Matched first part of name of %s to UNHCR name: %s' % (camp, campname))
+                    break
+        if result is None:
+            camptype = unhcr_camp_excluded.get(camp)
+            if camptype is None:
+                logger.info('Missing camp %s in UNHCR data!' % camp)
+            else:
+                logger.info('Camp %s is in UNHCR data but has camp type %s!' % (camp, camptype))
             continue
+        population, iso3 = result
+        number_hh = model.calculate_number_hh(population)
+        camp_camptypes = camptypes[camp]
 
         elecco2 = noncampelecgridco2[iso3]
 
@@ -189,7 +210,8 @@ def main():
                                                         campcookingsolidtype)
             se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                          cookingsolidcost)
-            row = [iso3, camp, number_hh, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+            cn = Country.get_country_name_from_iso3(iso3)
+            row = [iso3, cn, camp, number_hh, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
             results[pop_types.index('Camp')].append(row)
 
@@ -242,4 +264,4 @@ def main():
 
 
 if __name__ == '__main__':
-    facade(main, hdx_site='test', project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='feature', project_config_yaml=join('config', 'project_configuration.yml'))
