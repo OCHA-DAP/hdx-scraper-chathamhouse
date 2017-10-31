@@ -83,7 +83,7 @@ class TestChathamHouseModel:
         country_elecappliances = elecappliances.get(iso3)
         country_noncampelecgridco2 = noncampelecgridco2[iso3]
         country_cookinglpg = cookinglpg[iso3]
-        number_hh_by_pop_type = model.calculate_population('ang', unhcr_non_camp, urbanratios, slumratios)
+        number_hh_by_pop_type = model.calculate_population('ang', unhcr_non_camp, urbanratios, slumratios, 0.5, 0.5)
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 6977.851155989793,
                                          'Urban': 3626.785859192263}
         pop_type = 'Rural'

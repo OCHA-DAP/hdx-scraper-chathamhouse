@@ -33,6 +33,14 @@ def get_iso3(name):
     return iso3
 
 
+def calculate_average(d):
+    sum = 0.0
+    vals = d.values()
+    for val in vals:
+        sum += val
+    return sum / len(vals)
+
+
 def main():
     """Generate dataset and create it in HDX"""
     configuration = Configuration.read()
@@ -49,7 +57,9 @@ def main():
 
         world_bank_url = configuration['world_bank_url']
         urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
+        urbanratioavg = calculate_average(urbanratios)
         slumratios = get_slumratios(configuration['slum_ratio_url'])
+        slumratioavg = calculate_average(slumratios)
 
         noncamp_elec_access = dict()
         noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
@@ -130,7 +140,8 @@ def main():
     resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
-        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
+        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios,
+                                                           urbanratioavg, slumratioavg)
         if number_hh_by_pop_type is None:
             continue
 
@@ -138,7 +149,10 @@ def main():
         if country_elecappliances is None:
             logger.info('Missing electricity appliances data for %s!' % iso3)
             continue
-        country_noncampelecgridco2 = noncampelecgridco2[iso3]
+        country_noncampelecgridco2 = noncampelecgridco2.get(iso3)
+        if country_noncampelecgridco2 is None:
+            logger.info('Missing electricity grid CO2 data for %s!' % iso3)
+            continue
         country_cookinglpg = cookinglpg[iso3]
 
         for pop_type in number_hh_by_pop_type:

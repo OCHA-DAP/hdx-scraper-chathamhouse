@@ -26,19 +26,19 @@ class ChathamHouseModel:
         hh_size = self.constants['Household Size']
         return pop / hh_size
 
-    def calculate_population(self, iso3, unhcr_non_camp, urbanratios, slumratios):
+    def calculate_population(self, iso3, unhcr_non_camp, urbanratios, slumratios, urbanratioavg, slumratioavg):
         urbanratio = urbanratios.get(iso3)
         if not urbanratio:
-            logger.info('Missing urban ratio data for %s!' % iso3)
-            return None
+            logger.info('Missing urban ratio data for %s! Using global average.' % iso3)
+            urbanratio = urbanratioavg
         combined_urbanratio = (1 - urbanratio) * self.constants['Population Adjustment Factor'] + urbanratio
         displaced_population = unhcr_non_camp[iso3]
         urban_displaced_population = displaced_population * combined_urbanratio
         rural_displaced_population = displaced_population - urban_displaced_population
         slumratio = slumratios.get(iso3)
         if not slumratio:
-            logger.info('Missing slum ratio data for %s!' % iso3)
-            return None
+            logger.info('Missing slum ratio data for %s! Using global average.' % iso3)
+            slumratio = slumratioavg
         slum_displaced_population = urban_displaced_population * slumratio
         urban_minus_slum_displaced_population = urban_displaced_population - slum_displaced_population
         number_hh = dict()
