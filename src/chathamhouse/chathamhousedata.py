@@ -152,33 +152,29 @@ def get_worldbank_series(json_url, downloader):
 
 
 def get_slumratios(url):
-    openedurl = urllib.request.urlopen(url)
-    with ZipFile(BytesIO(openedurl.read())) as my_zip_file:
-        source = my_zip_file.open(my_zip_file.namelist()[0])
-        data = 'text://%s' % source.read().decode()
-        stream = Stream(data, headers=1, format='csv')
-        stream.open()
-        years = set()
-        for header in stream.headers:
-            try:
-                int(header)
-                years.add(header)
-            except ValueError:
-                pass
-        years = sorted(years, reverse=True)
-        slumratios = dict()
-        for row in stream.iter(keyed=True):
-            if not row:
-                break
-            iso3 = Country.get_iso3_country_code(row['Country'])
-            if iso3 is None:
-                continue
-            for year in years:
-                value = row.get(year)
-                if value and value != ' ':
-                    slumratios[iso3] = float(value) / 100.0
-        stream.close()
-        return slumratios
+    stream = Stream(url, headers=1, format='csv', compression='zip')
+    stream.open()
+    years = set()
+    for header in stream.headers:
+        try:
+            int(header)
+            years.add(header)
+        except ValueError:
+            pass
+    years = sorted(years, reverse=True)
+    slumratios = dict()
+    for row in stream.iter(keyed=True):
+        if not row:
+            break
+        iso3 = Country.get_iso3_country_code(row['Country'])
+        if iso3 is None:
+            continue
+        for year in years:
+            value = row.get(year)
+            if value and value != ' ':
+                slumratios[iso3] = float(value) / 100.0
+    stream.close()
+    return slumratios
 
 
 def generate_dataset_and_showcase(pop_types, today):
