@@ -132,7 +132,7 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
 
 
 def get_camptypes(url, downloader):
-    camptypes = downloader.download_csv_rows_as_dicts(url)
+    camptypes = downloader.download_tabular_rows_as_dicts(url)
     for key in camptypes:
         camptypes[key] = integer_value_convert(camptypes[key])
     return camptypes

@@ -5,7 +5,6 @@ Top level script. Calls other functions that generate datasets that this script 
 
 """
 import logging
-from functools import partial
 from os.path import join
 
 from datetime import datetime
@@ -33,22 +32,14 @@ def get_iso3(name):
     return iso3
 
 
-def calculate_average(d):
-    sum = 0.0
-    vals = d.values()
-    for val in vals:
-        sum += val
-    return sum / len(vals)
-
-
 def main():
     """Generate dataset and create it in HDX"""
     configuration = Configuration.read()
     with Download() as downloader:
-        constants = float_value_convert(downloader.download_csv_key_value(configuration['constants_url']))
+        constants = float_value_convert(downloader.download_tabular_key_value(configuration['constants_url']))
         constants['Lighting Grid Tier'] = int(constants['Lighting Grid Tier'])
 
-        camp_accommodation_types = downloader.download_csv_key_value(configuration['camp_accommodation_tyes_url'])
+        camp_accommodation_types = downloader.download_tabular_key_value(configuration['camp_accommodation_tyes_url'])
         datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
         unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = get_camp_non_camp_populations(constants['Non Camp Types'],
                                                                                         constants['Camp Types'],
@@ -57,35 +48,33 @@ def main():
 
         world_bank_url = configuration['world_bank_url']
         urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
-        urbanratioavg = calculate_average(urbanratios)
         slumratios = get_slumratios(configuration['slum_ratio_url'])
-        slumratioavg = calculate_average(slumratios)
 
         noncamp_elec_access = dict()
         noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
         noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader)
         noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Urban'], noncamp_elec_access['Rural'])
 
-        ieadata = downloader.download_csv_cols_as_dicts(configuration['iea_data_url'])
+        ieadata = downloader.download_tabular_cols_as_dicts(configuration['iea_data_url'])
         elecappliances = key_value_convert(ieadata['Electrical Appliances'], keyfn=get_iso3, valuefn=float,
                                            dropfailedkeys=True)
         cookinglpg = key_value_convert(ieadata['Cooking LPG'], keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
-        elecgridtiers = key_value_convert(downloader.download_csv_key_value(configuration['elec_grid_tiers_url']), keyfn=int, valuefn=float)
-        elecgriddirectenergy = float_value_convert(downloader.download_csv_key_value(configuration['elec_grid_direct_energy_url']))
-        noncampelecgridco2 = key_value_convert(downloader.download_csv_key_value(configuration['noncamp_elec_grid_co2_url']),
+        elecgridtiers = key_value_convert(downloader.download_tabular_key_value(configuration['elec_grid_tiers_url']), keyfn=int, valuefn=float)
+        elecgriddirectenergy = float_value_convert(downloader.download_tabular_key_value(configuration['elec_grid_direct_energy_url']))
+        noncampelecgridco2 = key_value_convert(downloader.download_tabular_key_value(configuration['noncamp_elec_grid_co2_url']),
                                     keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
 
-        noncamptypes = downloader.download_csv_cols_as_dicts(configuration['noncamp_types_url'])
+        noncamptypes = downloader.download_tabular_cols_as_dicts(configuration['noncamp_types_url'])
         noncamplightingoffgridtypes = integer_value_convert(noncamptypes['Lighting OffGrid'])
         noncampcookingsolidtypes = integer_value_convert(noncamptypes['Cooking Solid'])
 
         camptypes = get_camptypes(configuration['camp_types_url'], downloader)
 
-        costs = downloader.download_csv_cols_as_dicts(configuration['costs_url'])
+        costs = downloader.download_tabular_cols_as_dicts(configuration['costs_url'])
         lightingoffgridcost = float_value_convert(costs['Lighting OffGrid'])
         cookingsolidcost = float_value_convert(costs['Cooking Solid'])
 
-        noncamp_nonsolid_access = downloader.download_csv_cols_as_dicts(configuration['noncamp_cooking_nonsolid_url'])
+        noncamp_nonsolid_access = downloader.download_tabular_cols_as_dicts(configuration['noncamp_cooking_nonsolid_url'])
         noncamp_nonsolid_access['Urban'] = key_value_convert(noncamp_nonsolid_access['Urban'],
                                                      keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
         noncamp_nonsolid_access['Rural'] = key_value_convert(noncamp_nonsolid_access['Rural'],
@@ -93,11 +82,11 @@ def main():
         noncamp_nonsolid_access['Slum'] = noncamp_nonsolid_access['Urban']
 
         small_camptypes = get_camptypes(configuration['small_camptypes_url'], downloader)
-        small_camp_data = downloader.download_csv_cols_as_dicts(configuration['small_camps_data_url'])
+        small_camp_data = downloader.download_tabular_cols_as_dicts(configuration['small_camps_data_url'])
         smallcamps = float_value_convert(small_camp_data['Population'])
         small_camps_elecgridco2 = float_value_convert(small_camp_data['Electricity Grid CO2'])
 
-        type_descriptions = downloader.download_csv_cols_as_dicts(configuration['type_descriptions_url'])
+        type_descriptions = downloader.download_tabular_cols_as_dicts(configuration['type_descriptions_url'])
         lighting_type_descriptions = type_descriptions['Lighting Descriptions']
         cooking_type_descriptions = type_descriptions['Cooking Descriptions']
 
@@ -117,8 +106,8 @@ def main():
         else:
             headers.append(['ISO3 Country Code', 'Country Name'])
             hxlheaders = ['#country+code', '#country+name']
-        headers[-1].extend(['Number of Households', 'Tier'])
-        hxlheaders.extend(['#population+num+hh', '#indicator+tier'])
+        headers[-1].extend(['Population', 'Tier'])
+        hxlheaders.extend(['#population+num', '#indicator+tier'])
         if pop_type not in ['Camp', 'Small Camp']:
             headers[-1].extend(['Grid Expenditure ($m/yr)', 'Grid CO2 Emissions (t/yr)'])
             hxlheaders.extend(['#indicator+value+grid+expenditure', '#indicator+value+grid+co2_emissions'])
@@ -140,32 +129,33 @@ def main():
     resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
-        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios,
-                                                           urbanratioavg, slumratioavg)
-        if number_hh_by_pop_type is None:
-            continue
-
+        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
         country_elecappliances = elecappliances.get(iso3)
         if country_elecappliances is None:
-            logger.info('Missing electricity appliances data for %s!' % iso3)
-            continue
+            country_elecappliances = model.calculate_regional_average('Electrical Appliances', elecappliances, iso3)
         country_noncampelecgridco2 = noncampelecgridco2.get(iso3)
         if country_noncampelecgridco2 is None:
-            logger.info('Missing electricity grid CO2 data for %s!' % iso3)
-            continue
-        country_cookinglpg = cookinglpg[iso3]
+            country_noncampelecgridco2 = model.calculate_regional_average('Grid CO2', noncampelecgridco2, iso3)
+        country_cookinglpg = cookinglpg.get(iso3)
+        if country_cookinglpg is None:
+            country_cookinglpg = model.calculate_regional_average('LPG', cookinglpg, iso3)
 
         for pop_type in number_hh_by_pop_type:
             number_hh = number_hh_by_pop_type[pop_type]
 
             country_elec_access = noncamp_elec_access[pop_type].get(iso3)
             if country_elec_access is None:
-                logger.info('Missing electricity access data for %s!' % iso3)
-                continue
+                country_elec_access = model.calculate_regional_average('Grid access', noncamp_elec_access[pop_type],
+                                                                       iso3)
             hh_grid_access, hh_offgrid = model.calculate_hh_access(number_hh, country_elec_access)
 
+            country_noncamp_nonsolid_access = noncamp_nonsolid_access[pop_type].get(iso3)
+            if country_noncamp_nonsolid_access is None:
+                country_noncamp_nonsolid_access = model.calculate_regional_average('Nonsolid access',
+                                                                                   noncamp_nonsolid_access[pop_type],
+                                                                                   iso3)
             hh_nonsolid_access, hh_no_nonsolid_access = \
-                model.calculate_hh_access(number_hh, noncamp_nonsolid_access[pop_type][iso3])
+                model.calculate_hh_access(number_hh, country_noncamp_nonsolid_access)
 
             ge, gc = model.calculate_ongrid_lighting(hh_grid_access, elecgridtiers, country_elecappliances,
                                                      country_noncampelecgridco2)
@@ -186,7 +176,8 @@ def main():
                                                              noncampcookingsolidtype, cookingsolidcost)
 
                 cn = Country.get_country_name_from_iso3(iso3)
-                row = [iso3, cn, number_hh, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc,
+                population = model.calculate_population_from_hh(number_hh)
+                row = [iso3, cn, population, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc,
                        oe, oc, oco2, ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
                 results[pop_types.index(pop_type.capitalize())].append(row)
 
@@ -210,7 +201,9 @@ def main():
         number_hh = model.calculate_number_hh(population)
         camp_camptypes = camptypes[camp]
 
-        elecco2 = noncampelecgridco2[iso3]
+        country_noncampelecgridco2 = noncampelecgridco2.get(iso3)
+        if country_noncampelecgridco2 is None:
+            country_noncampelecgridco2 = model.calculate_regional_average('Grid CO2', noncampelecgridco2, iso3)
 
         for tier in model.tiers:
             baseline_target = model.get_baseline_target(tier)
@@ -218,14 +211,15 @@ def main():
             camplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
                                                          camplightingoffgridtype)
             oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, number_hh, camplightingoffgridtype,
-                                                            lightingoffgridcost, elecgriddirectenergy, elecco2)
+                                                            lightingoffgridcost, elecgriddirectenergy,
+                                                            country_noncampelecgridco2)
             campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
             campcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
                                                         campcookingsolidtype)
             se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                          cookingsolidcost)
             cn = Country.get_country_name_from_iso3(iso3)
-            row = [iso3, cn, camp, number_hh, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+            row = [iso3, cn, camp, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
             results[pop_types.index('Camp')].append(row)
 
@@ -261,7 +255,7 @@ def main():
                                                             campcookingsolidtype)
                 se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
                                                              cookingsolidcost)
-            row = [region, number_hh, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+            row = [region, model.round(population), tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
             results[pop_types.index('Small Camp')].append(row)
 
@@ -271,10 +265,10 @@ def main():
         file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
-    dataset.update_from_yaml()
-    dataset.create_in_hdx()
-    showcase.create_in_hdx()
-    showcase.add_dataset(dataset)
+    # dataset.update_from_yaml()
+    # dataset.create_in_hdx()
+    # showcase.create_in_hdx()
+    # showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':

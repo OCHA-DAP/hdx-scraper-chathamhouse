@@ -10,11 +10,14 @@ Run Chatham House model.
 
 import logging
 
+from hdx.location.country import Country
+
 logger = logging.getLogger(__name__)
 
 
 class ChathamHouseModel:
     tiers = ['Baseline', 'Target 1', 'Target 2', 'Target 3']
+    region_levels = {1: 'Region Code', 2: 'Intermediate Region Code', 3: 'Sub-region Code'}
     expenditure_divisor = 1000000.0
     capital_divisor = 1000000.0
     co2_divisor = 1000.0
@@ -26,19 +29,58 @@ class ChathamHouseModel:
         hh_size = self.constants['Household Size']
         return pop / hh_size
 
-    def calculate_population(self, iso3, unhcr_non_camp, urbanratios, slumratios, urbanratioavg, slumratioavg):
+    @staticmethod
+    def round(val):
+        return int(val + 0.5)
+
+    @staticmethod
+    def calculate_average(datadict, keys=None):
+        sum = 0.0
+        if keys is None:
+            keys = datadict.keys()
+        no_keys = 0
+        for key in keys:
+            if key in datadict:
+                sum += datadict[key]
+                no_keys += 1
+        if no_keys == 0:
+            return None
+        return sum / no_keys
+
+    @classmethod
+    def calculate_regional_average(cls, val_type, datadict, iso3):
+        countryinfo = Country.get_country_info_from_iso3(iso3)
+        avg = None
+        level = 3
+        while avg is None:
+            if level == 0:
+                logger.warning('%s: %s - Using global average' % (iso3, val_type))
+                return cls.calculate_average(datadict)
+            region_level = cls.region_levels[level]
+            region = countryinfo[region_level]
+            if region:
+                countries_in_region = Country.get_countries_in_region(region)
+                avg = cls.calculate_average(datadict, countries_in_region)
+                if avg:
+                    logger.warning('%s: %s - Using %s average' % (iso3, val_type, region_level))
+                    return avg
+            level -= 1
+
+    def calculate_population_from_hh(self, hh):
+        hh_size = self.constants['Household Size']
+        return self.round(hh * hh_size)
+
+    def calculate_population(self, iso3, unhcr_non_camp, urbanratios, slumratios):
         urbanratio = urbanratios.get(iso3)
         if not urbanratio:
-            logger.info('Missing urban ratio data for %s! Using global average.' % iso3)
-            urbanratio = urbanratioavg
+            urbanratio = self.calculate_regional_average('Urban ratio', urbanratios, iso3)
         combined_urbanratio = (1 - urbanratio) * self.constants['Population Adjustment Factor'] + urbanratio
         displaced_population = unhcr_non_camp[iso3]
         urban_displaced_population = displaced_population * combined_urbanratio
         rural_displaced_population = displaced_population - urban_displaced_population
         slumratio = slumratios.get(iso3)
         if not slumratio:
-            logger.info('Missing slum ratio data for %s! Using global average.' % iso3)
-            slumratio = slumratioavg
+            slumratio = self.calculate_regional_average('Slum ratio', slumratios, iso3)
         slum_displaced_population = urban_displaced_population * slumratio
         urban_minus_slum_displaced_population = urban_displaced_population - slum_displaced_population
         number_hh = dict()
