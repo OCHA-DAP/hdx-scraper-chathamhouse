@@ -1,12 +1,16 @@
 # -*- coding: UTF-8 -*-
 """Global fixtures"""
 import pytest
-from os.path import join
+from os.path import join, abspath
 
+import six
 from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.hdx_locations import Locations
 from hdx.location.country import Country
+from hdx.utilities.downloader import Download
+
+from chathamhouse.chathamhousedata import get_slumratios
 
 
 @pytest.fixture(scope='session')
@@ -15,9 +19,25 @@ def configuration():
     Locations.set_validlocations([{'name': 'world', 'title': 'World'}])
 
 
+@pytest.fixture(scope='session')
+def downloader():
+    downloader = Download()
+    downloader.session = None  # Hack for Tabulator local file issue
+    return downloader
+
+
 @pytest.fixture(scope='session', autouse=True)
 def country():
     Country.countriesdata(use_live=False)
+
+
+@pytest.fixture(scope='session')
+def slumratios(downloader):
+    def path2url(path):
+        return six.moves.urllib_parse.urljoin("file://", six.moves.urllib.request.pathname2url(path))
+
+    url = path2url(abspath(join('tests', 'fixtures', 'MDG_Export_20170913_174700805.zip')))
+    return get_slumratios(url, downloader)
 
 
 @pytest.fixture(scope='session')

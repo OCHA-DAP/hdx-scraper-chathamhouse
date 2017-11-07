@@ -7,17 +7,12 @@ Unit tests for Chatham House Model.
 from os.path import join
 
 import pytest
-from hdx.utilities.downloader import Download
 
 from chathamhouse.chathamhousedata import get_camptypes
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 
 class TestChathamHouseModel:
-    @pytest.fixture(scope='class')
-    def downloader(self):
-        return Download()
-
     @pytest.fixture(scope='class')
     def camptypes(self, downloader):
         return get_camptypes(join('tests', 'fixtures', 'Chatham House Constants and Lookups - CampTypes.csv'),
@@ -64,7 +59,7 @@ class TestChathamHouseModel:
         return model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access, campcookingsolidtype,
                                              cookingsolidcost)
 
-    def testNonCampModel(self, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost):
+    def testNonCampModel(self, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost, slumratios):
         model = ChathamHouseModel({'Population Adjustment Factor': 0.7216833622,
                                    'Household Size': 5,
                                    'Electricity Cost': 25,
@@ -72,10 +67,9 @@ class TestChathamHouseModel:
                                    'Kerosene CO2 Emissions': 2.96,
                                    'Lighting Offgrid Scaling Factor': 1,
                                    'Cooking Solid Scaling Factor': 1})
-        iso3 = 'ang'
+        iso3 = 'ago'
         unhcr_non_camp = {iso3: 59970}
         urbanratios = {iso3: 0.58379}
-        slumratios = {iso3: 0.658}
         elecappliances = {iso3: 92.6033836492}
         noncampelecgridco2 = {iso3: 0.0375}
         cookinglpg = {iso3: 4.096473669}
@@ -83,7 +77,10 @@ class TestChathamHouseModel:
         country_elecappliances = elecappliances.get(iso3)
         country_noncampelecgridco2 = noncampelecgridco2[iso3]
         country_cookinglpg = cookinglpg[iso3]
-        number_hh_by_pop_type = model.calculate_population('ang', unhcr_non_camp, urbanratios, slumratios, 0.5, 0.5)
+        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
+        assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 7368.202794691494,
+                                         'Urban': 3236.4342204905624}
+        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, {iso3: 0.658})
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 6977.851155989793,
                                          'Urban': 3626.785859192263}
         pop_type = 'Rural'

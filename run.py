@@ -44,11 +44,12 @@ def main():
         unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = get_camp_non_camp_populations(constants['Non Camp Types'],
                                                                                         constants['Camp Types'],
                                                                                         camp_accommodation_types,
-                                                                                        datasets)
+                                                                                        datasets,
+                                                                                        downloader)
 
         world_bank_url = configuration['world_bank_url']
         urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
-        slumratios = get_slumratios(configuration['slum_ratio_url'])
+        slumratios = get_slumratios(configuration['slum_ratio_url'], downloader)
 
         noncamp_elec_access = dict()
         noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
@@ -265,10 +266,10 @@ def main():
         file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
-    # dataset.update_from_yaml()
-    # dataset.create_in_hdx()
-    # showcase.create_in_hdx()
-    # showcase.add_dataset(dataset)
+    dataset.update_from_yaml()
+    dataset.create_in_hdx()
+    showcase.create_in_hdx()
+    showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':

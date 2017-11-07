@@ -8,9 +8,6 @@ Collects input data for Chatham House.
 
 """
 import logging
-import urllib.request
-from io import BytesIO
-from zipfile import ZipFile
 
 from hdx.data.dataset import Dataset
 from hdx.data.resource import Resource
@@ -18,13 +15,12 @@ from hdx.data.showcase import Showcase
 from hdx.utilities.dictandlist import integer_value_convert
 from hdx.location.country import Country
 from slugify import slugify
-from tabulator import Stream
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_types, datasets):
+def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_types, datasets, downloader):
     noncamp_types = noncamp_types.split(',')
     camp_types = camp_types.split(',')
     dataset_unhcr = None
@@ -45,9 +41,7 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
     unhcr_non_camp = dict()
     unhcr_camp = dict()
     unhcr_camp_excluded = dict()
-    stream = Stream(url, sheet='Tab15')
-    stream.open()
-    rowiter = stream.iter()
+    rowiter = downloader.get_tabular_rows(url, sheet='Tab15')
     for row in rowiter:
         country = row[country_ind]
         iso3 = Country.get_iso3_country_code(country)
@@ -127,7 +121,6 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
                 except ValueError:
                     continue
                 break
-    stream.close()
     return unhcr_non_camp, unhcr_camp, unhcr_camp_excluded
 
 
@@ -151,9 +144,8 @@ def get_worldbank_series(json_url, downloader):
     return data
 
 
-def get_slumratios(url):
-    stream = Stream(url, headers=1, format='csv', compression='zip')
-    stream.open()
+def get_slumratios(url, downloader):
+    stream = downloader.get_tabular_stream(url, headers=1, format='csv', compression='zip')
     years = set()
     for header in stream.headers:
         try:
@@ -173,7 +165,6 @@ def get_slumratios(url):
             value = row.get(year)
             if value and value != ' ':
                 slumratios[iso3] = float(value) / 100.0
-    stream.close()
     return slumratios
 
 

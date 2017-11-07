@@ -5,11 +5,8 @@ Unit tests for Chatham House data.
 
 '''
 from datetime import datetime
-from os.path import join, abspath
-from pprint import pprint
 
 import pytest
-import six
 
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, \
     get_worldbank_series, get_slumratios, generate_dataset_and_showcase
@@ -18,7 +15,7 @@ from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected,
 
 class TestChathamHouseData:
     @pytest.fixture(scope='function')
-    def downloader(self):
+    def wbdownloader(self):
         class Response:
             @staticmethod
             def json():
@@ -62,26 +59,20 @@ class TestChathamHouseData:
                 return response
         return Download()
 
-    def test_get_camp_non_camp_populations(self, datasets):
+    def test_get_camp_non_camp_populations(self, datasets, downloader):
         unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
             get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
-                                          {'Corum': 'Planned/managed camp'}, datasets)
+                                          {'Corum': 'Planned/managed camp'}, datasets, downloader)
         assert unhcr_non_camp == unhcr_non_camp_expected
-        pprint(unhcr_camp)
         assert unhcr_camp == unhcr_camp_expected
 
-    def test_get_worldbank_series(self, downloader):
+    def test_get_worldbank_series(self, wbdownloader):
         result = get_worldbank_series('http://lala/countries/all/indicators/SP.URB.TOTL.IN.ZS?MRV=1&format=json&per_page=10000',
-                                      downloader)
+                                      wbdownloader)
         assert result == {'AUT': 0.66032, 'ZWE': 0.32277}
 
-    def test_get_slumratios(self):
-        def path2url(path):
-            return six.moves.urllib_parse.urljoin("file://", six.moves.urllib.request.pathname2url(path))
-
-        url = path2url(abspath(join('tests', 'fixtures', 'MDG_Export_20170913_174700805.zip')))
-        result = get_slumratios(url)
-        assert result == slum_ratios_expected
+    def test_get_slumratios(self, slumratios):
+        assert slumratios == slum_ratios_expected
 
     def test_generate_dataset_and_showcase(self, configuration):
         dataset, showcase = generate_dataset_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
