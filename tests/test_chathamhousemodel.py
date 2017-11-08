@@ -78,8 +78,8 @@ class TestChathamHouseModel:
         country_noncampelecgridco2 = noncampelecgridco2[iso3]
         country_cookinglpg = cookinglpg[iso3]
         number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
-        assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 7368.202794691494,
-                                         'Urban': 3236.4342204905624}
+        assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 7601.16815388216,
+                                         'Urban': 3003.4688612998957}
         number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, {iso3: 0.658})
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 6977.851155989793,
                                          'Urban': 3626.785859192263}
@@ -200,3 +200,11 @@ class TestChathamHouseModel:
         assert solid_expenditure == 0.6505642389516176
         assert solid_capital_costs == 0.00916640744582953
         assert solid_co2_emissions == 11087.728057822153
+
+    def test_calculate_regional_average(self):
+        avg = ChathamHouseModel.calculate_regional_average('things', {'COM': 0.5, 'ETH': 0.1, 'AGO': 0.9}, 'DJI')
+        assert avg == 0.3
+        avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'LSO': 0.7, 'DZA': 0.7}, 'DJI')
+        assert avg == 0.5
+        avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'COM': 0.5, 'AIA': 0.9}, 'LBY')
+        assert avg == 0.4

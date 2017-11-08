@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class ChathamHouseModel:
     tiers = ['Baseline', 'Target 1', 'Target 2', 'Target 3']
-    region_levels = {1: 'Region Code', 2: 'Intermediate Region Code', 3: 'Sub-region Code'}
+    region_levels = {1: 'Region', 2: 'Sub-region', 3: 'Intermediate Region'}
     expenditure_divisor = 1000000.0
     capital_divisor = 1000000.0
     co2_divisor = 1000.0
@@ -50,21 +50,21 @@ class ChathamHouseModel:
     @classmethod
     def calculate_regional_average(cls, val_type, datadict, iso3):
         countryinfo = Country.get_country_info_from_iso3(iso3)
-        avg = None
         level = 3
-        while avg is None:
-            if level == 0:
-                logger.warning('%s: %s - Using global average' % (iso3, val_type))
-                return cls.calculate_average(datadict)
+        while level != 0:
             region_level = cls.region_levels[level]
-            region = countryinfo[region_level]
-            if region:
-                countries_in_region = Country.get_countries_in_region(region)
+            region_prefix = region_level
+            regioncode = countryinfo['%s Code' % region_prefix]
+            regionname = countryinfo['%s Name' % region_prefix]
+            if regioncode:
+                countries_in_region = Country.get_countries_in_region(regioncode)
                 avg = cls.calculate_average(datadict, countries_in_region)
                 if avg:
-                    logger.warning('%s: %s - Using %s average' % (iso3, val_type, region_level))
+                    logger.warning('%s: %s - Using %s (%s) average' % (iso3, val_type, regionname, region_level))
                     return avg
             level -= 1
+        logger.warning('%s: %s - Using global average' % (iso3, val_type))
+        return cls.calculate_average(datadict)
 
     def calculate_population_from_hh(self, hh):
         hh_size = self.constants['Household Size']
