@@ -4,6 +4,7 @@
 Top level script. Calls other functions that generate datasets that this script then creates in HDX.
 
 """
+import copy
 import logging
 from os.path import join
 
@@ -19,7 +20,7 @@ from hdx.utilities.downloader import Download
 from hdx.location.country import Country
 
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, get_worldbank_series, \
-    get_slumratios, get_camptypes, generate_dataset_and_showcase
+    get_slumratios, get_camptypes, generate_dataset_and_showcase, check_name_dispersed
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 logger = logging.getLogger(__name__)
@@ -41,11 +42,10 @@ def main():
 
         camp_accommodation_types = downloader.download_tabular_key_value(configuration['camp_accommodation_tyes_url'])
         datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
-        unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = get_camp_non_camp_populations(constants['Non Camp Types'],
-                                                                                        constants['Camp Types'],
-                                                                                        camp_accommodation_types,
-                                                                                        datasets,
-                                                                                        downloader)
+        all_camps_per_country, unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
+            get_camp_non_camp_populations(constants['Non Camp Types'], constants['Camp Types'],
+                                          camp_accommodation_types, datasets, downloader)
+        country_totals = copy.deepcopy(all_camps_per_country)
 
         world_bank_url = configuration['world_bank_url']
         urbanratios = get_worldbank_series(world_bank_url % configuration['urban_ratio_wb'], downloader)
@@ -96,7 +96,7 @@ def main():
     headers = list()
     results = list()
 
-    for pop_type in pop_types:
+    for i, pop_type in enumerate(pop_types):
         results.append(list())
         if pop_type == 'Camp':
             headers.append(['ISO3 Country Code', 'Country Name', 'Camp Name'])
@@ -123,14 +123,20 @@ def main():
                             'Solid Capital Costs ($m)', 'Solid CO2_Emissions (t/yr)'])
         hxlheaders.extend(['#indicator+type+solid', '#indicator+text+cooking', '#indicator+value+solid+expenditure',
                            '#indicator+value+solid+capital_costs', '#indicator+value+solid+co2_emissions'])
-        results[pop_types.index(pop_type)].append(hxlheaders)
+        results[i].append(hxlheaders)
+
+    results.append(list())
+    headers.append(['ISO3 Country Code', 'Country Name', 'Population'])
+    hxlheaders = ['#country+code', '#country+name', '#population+num']
+    results[len(results)-1].append(hxlheaders)
 
     today = datetime.now()
     dataset, showcase = generate_dataset_and_showcase(pop_types, today)
     resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
-        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
+        population = model.sum_population(unhcr_non_camp, iso3, all_camps_per_country)
+        number_hh_by_pop_type = model.calculate_population(iso3, population, urbanratios, slumratios)
         country_elecappliances = elecappliances.get(iso3)
         if country_elecappliances is None:
             country_elecappliances = model.calculate_regional_average('Electrical Appliances', elecappliances, iso3)
@@ -182,23 +188,29 @@ def main():
                        oe, oc, oco2, ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
                 results[pop_types.index(pop_type.capitalize())].append(row)
 
+    missing_from_unhcr = list()
     for camp in sorted(camptypes):
-        result = unhcr_camp.get(camp)
+        unhcrcampname = camp
+        result = unhcr_camp.get(unhcrcampname)
         if result is None:
             firstpart = camp.split(':')[0].strip()
-            for campname in sorted(unhcr_camp):
-                if firstpart in campname:
-                    result = unhcr_camp[campname]
-                    logger.info('Matched first part of name of %s to UNHCR name: %s' % (camp, campname))
+            for unhcrcampname in sorted(unhcr_camp):
+                if firstpart in unhcrcampname:
+                    result = unhcr_camp[unhcrcampname]
+                    logger.info('Matched first part of name of %s to UNHCR name: %s' % (camp, unhcrcampname))
                     break
         if result is None:
             camptype = unhcr_camp_excluded.get(camp)
             if camptype is None:
-                logger.info('Missing camp %s in UNHCR data!' % camp)
+                if check_name_dispersed(camp):
+                    logger.info('Camp %s from the spreadsheet has been treated as non-camp!' % camp)
+                else:
+                    missing_from_unhcr.append(camp)
             else:
                 logger.info('Camp %s is in UNHCR data but has camp type %s!' % (camp, camptype))
             continue
-        population, iso3 = result
+        population, iso3, accommodation_type = result
+        del all_camps_per_country[iso3][accommodation_type][unhcrcampname]
         number_hh = model.calculate_number_hh(population)
         camp_camptypes = camptypes[camp]
 
@@ -260,16 +272,33 @@ def main():
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
             results[pop_types.index('Small Camp')].append(row)
 
+    logger.info('The following camps are in the spreadsheet but not in the UNHCR data : %s' %
+                ', '.join(missing_from_unhcr))
+
+    for iso3 in sorted(country_totals):
+        population = model.sum_population(country_totals, iso3)
+        cn = Country.get_country_name_from_iso3(iso3)
+        row = [iso3, cn, population]
+        results[len(results)-1].append(row)
+
+        extra_camp_types = all_camps_per_country[iso3]
+        for accommodation_type in sorted(extra_camp_types):
+            camps = extra_camp_types[accommodation_type]
+            for name in sorted(camps):
+                population = camps[name]
+                logger.warning('For country %s, UNHCR data has extra camp %s with population %s and accommodation type %s' %
+                               (cn, name, population, accommodation_type))
+
     folder = gettempdir()
-    for i, pop_type in enumerate(pop_types):
+    for i, _ in enumerate(results):
         resource = resources[i]
         file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
-    dataset.update_from_yaml()
-    dataset.create_in_hdx()
-    showcase.create_in_hdx()
-    showcase.add_dataset(dataset)
+    # dataset.update_from_yaml()
+    # dataset.create_in_hdx()
+    # showcase.create_in_hdx()
+    # showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':

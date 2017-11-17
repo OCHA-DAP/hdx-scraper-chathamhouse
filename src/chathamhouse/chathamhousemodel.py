@@ -47,6 +47,18 @@ class ChathamHouseModel:
             return None
         return sum / no_keys
 
+    @staticmethod
+    def sum_population(totals_dict, iso3, remove_dict=None):
+        population = 0
+        accom_types = totals_dict[iso3]
+        for accom_type in sorted(accom_types):
+            camps = accom_types[accom_type]
+            for name in sorted(camps):
+                population += camps[name]
+                if remove_dict:
+                    del remove_dict[iso3][accom_type][name]
+        return population
+
     @classmethod
     def calculate_regional_average(cls, val_type, datadict, iso3):
         countryinfo = Country.get_country_info_from_iso3(iso3)
@@ -70,12 +82,11 @@ class ChathamHouseModel:
         hh_size = self.constants['Household Size']
         return self.round(hh * hh_size)
 
-    def calculate_population(self, iso3, unhcr_non_camp, urbanratios, slumratios):
+    def calculate_population(self, iso3, displaced_population, urbanratios, slumratios):
         urbanratio = urbanratios.get(iso3)
         if not urbanratio:
             urbanratio = self.calculate_regional_average('Urban ratio', urbanratios, iso3)
         combined_urbanratio = (1 - urbanratio) * self.constants['Population Adjustment Factor'] + urbanratio
-        displaced_population = unhcr_non_camp[iso3]
         urban_displaced_population = displaced_population * combined_urbanratio
         rural_displaced_population = displaced_population - urban_displaced_population
         slumratio = slumratios.get(iso3)

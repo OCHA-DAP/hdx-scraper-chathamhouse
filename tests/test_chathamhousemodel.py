@@ -77,10 +77,12 @@ class TestChathamHouseModel:
         country_elecappliances = elecappliances.get(iso3)
         country_noncampelecgridco2 = noncampelecgridco2[iso3]
         country_cookinglpg = cookinglpg[iso3]
-        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, slumratios)
+
+        displaced_population = unhcr_non_camp[iso3]
+        number_hh_by_pop_type = model.calculate_population(iso3, displaced_population, urbanratios, slumratios)
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 7601.16815388216,
                                          'Urban': 3003.4688612998957}
-        number_hh_by_pop_type = model.calculate_population(iso3, unhcr_non_camp, urbanratios, {iso3: 0.658})
+        number_hh_by_pop_type = model.calculate_population(iso3, displaced_population, urbanratios, {iso3: 0.658})
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 6977.851155989793,
                                          'Urban': 3626.785859192263}
         pop_type = 'Rural'
@@ -208,3 +210,9 @@ class TestChathamHouseModel:
         assert avg == 0.5
         avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'COM': 0.5, 'AIA': 0.9}, 'LBY')
         assert avg == 0.4
+
+    def test_sum_population(self):
+        remdict = {'AFG': {'individual': {'a': 10, 'b': 20}}, 'BUR': {'self-settled': {'c': 12, 'd': 21}}}
+        pop = ChathamHouseModel.sum_population({'AFG': {'individual': {'a': 10, 'b': 20}}}, 'AFG', remdict)
+        assert pop == 30
+        assert remdict == {'AFG': {'individual': {}}, 'BUR': {'self-settled': {'c': 12, 'd': 21}}}

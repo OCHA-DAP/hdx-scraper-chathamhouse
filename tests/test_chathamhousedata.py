@@ -4,13 +4,14 @@
 Unit tests for Chatham House data.
 
 '''
+import pytest
 from datetime import datetime
 
-import pytest
-
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, \
-    get_worldbank_series, get_slumratios, generate_dataset_and_showcase
-from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected
+    get_worldbank_series, generate_dataset_and_showcase, check_name_dispersed
+from chathamhouse.chathamhousemodel import ChathamHouseModel
+from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected, \
+    country_totals_expected
 
 
 class TestChathamHouseData:
@@ -60,9 +61,13 @@ class TestChathamHouseData:
         return Download()
 
     def test_get_camp_non_camp_populations(self, datasets, downloader):
-        unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
+        all_camps_per_country, unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
             get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
                                           {'Corum': 'Planned/managed camp'}, datasets, downloader)
+        country_totals = dict()
+        for iso3 in all_camps_per_country:
+            country_totals[iso3] = ChathamHouseModel.sum_population(all_camps_per_country, iso3)
+        assert country_totals == country_totals_expected
         assert unhcr_non_camp == unhcr_non_camp_expected
         assert unhcr_camp == unhcr_camp_expected
 
@@ -73,6 +78,10 @@ class TestChathamHouseData:
 
     def test_get_slumratios(self, slumratios):
         assert slumratios == slum_ratios_expected
+
+    def test_check_name_dispersed(self):
+        assert check_name_dispersed('Burundi : Dispersed in the country / territory') is True
+        assert check_name_dispersed('Afghanistan') is False
 
     def test_generate_dataset_and_showcase(self, configuration):
         dataset, showcase = generate_dataset_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
@@ -85,7 +94,9 @@ class TestChathamHouseData:
         assert dataset.get_resources() == [{'name': 'urban_consumption.csv', 'format': 'csv',
                                             'description': 'Urban energy consumption of refugees and displaced people'},
                                            {'name': 'small_camps_consumption.csv', 'format': 'csv',
-                                            'description': 'Small camps energy consumption of refugees and displaced people'}]
+                                            'description': 'Small camps energy consumption of refugees and displaced people'},
+                                           {'name': 'population.csv', 'format': 'csv',
+                                            'description': 'UNHCR displaced population totals'}]
         assert showcase == {'title': 'Energy services for refugees and displaced people',
                             'notes': 'Click the image on the right to go to the energy services model',
                             'image_url': 'https://www.chathamhouse.org/sites/files/chathamhouse/styles/large_square_/public/images/Combo_large_LCP%20%282%29.jpg?itok=0HgBOAyu',

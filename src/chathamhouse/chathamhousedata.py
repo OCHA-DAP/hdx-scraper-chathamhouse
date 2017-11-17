@@ -20,6 +20,28 @@ from slugify import slugify
 logger = logging.getLogger(__name__)
 
 
+def append_population(countrydict, name, accommodation_type, population, iso3):
+    accom_types = countrydict.get(iso3)
+    if accom_types is None:
+        accom_types = dict()
+        countrydict[iso3] = accom_types
+    camps = accom_types.get(accommodation_type)
+    if camps is None:
+        camps = dict()
+        accom_types[accommodation_type] = camps
+    existing_pop = camps.get(name)
+    if existing_pop is None:
+        existing_pop = 0
+    camps[name] = existing_pop + population
+
+
+def check_name_dispersed(name):
+    lowername = name.lower()
+    if 'dispersed' in lowername and ('country' in name.lower() or 'territory' in name.lower()):
+        return True
+    return False
+
+
 def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_types, datasets, downloader):
     noncamp_types = noncamp_types.split(',')
     camp_types = camp_types.split(',')
@@ -38,6 +60,7 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
     iso3 = None
     row = None
     prev_row = None
+    all_camps_per_country = dict()
     unhcr_non_camp = dict()
     unhcr_camp = dict()
     unhcr_camp_excluded = dict()
@@ -71,18 +94,28 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
     if accommodation_type is None:
         accommodation_type = row[accommodation_ind]
     accommodation_type = accommodation_type.lower()
-    found = False
-    for camp_type in camp_types:
-        if camp_type in accommodation_type:
-            unhcr_camp[campname] = population, iso3
-            found = True
-            break
-    for noncamp_type in noncamp_types:
-        if noncamp_type in accommodation_type:
-            unhcr_non_camp[iso3] = population
-            break
-    if not found:
-        unhcr_camp_excluded[campname] = accommodation_type
+
+    def match_camp_types(name, accom_type, pop, iso):
+        if check_name_dispersed(name):
+            accom_type = noncamp_types[0]
+        found_camp_type = None
+        for camp_type in camp_types:
+            if camp_type in accom_type:
+                found_camp_type = camp_type
+                unhcr_camp[name] = pop, iso, found_camp_type
+                break
+        for noncamp_type in noncamp_types:
+            if noncamp_type in accom_type:
+                found_camp_type = noncamp_type
+                append_population(unhcr_non_camp, name, found_camp_type, pop, iso)
+                break
+        if found_camp_type is None:
+            append_population(unhcr_camp_excluded, name, accom_type, pop, iso)
+            append_population(all_camps_per_country, name, accom_type, pop, iso)
+        else:
+            append_population(all_camps_per_country, name, found_camp_type, pop, iso)
+
+    match_camp_types(campname, accommodation_type, population, iso3)
     for row in rowiter:
         country = row[country_ind]
         if not country:
@@ -102,26 +135,8 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
             accommodation_type = row[accommodation_ind]
         accommodation_type = accommodation_type.lower()
         population = int(row[population_ind])
-        found = False
-        for camp_type in camp_types:
-            if camp_type in accommodation_type:
-                unhcr_camp[campname] = population, iso3
-                found = True
-                break
-        if not found:
-            unhcr_camp_excluded[campname] = accommodation_type
-        for noncamp_type in noncamp_types:
-            if noncamp_type in accommodation_type:
-                country_population = unhcr_non_camp.get(iso3)
-                if not country_population:
-                    country_population = 0
-                try:
-                    country_population += population
-                    unhcr_non_camp[iso3] = country_population
-                except ValueError:
-                    continue
-                break
-    return unhcr_non_camp, unhcr_camp, unhcr_camp_excluded
+        match_camp_types(campname, accommodation_type, population, iso3)
+    return all_camps_per_country, unhcr_non_camp, unhcr_camp, unhcr_camp_excluded
 
 
 def get_camptypes(url, downloader):
@@ -193,6 +208,14 @@ def generate_dataset_and_showcase(pop_types, today):
         }
         resource = Resource(resource_data)
         dataset.add_update_resource(resource)
+
+    resource_data = {
+        'name': 'population.csv',
+        'description': 'UNHCR displaced population totals',
+        'format': 'csv'
+    }
+    resource = Resource(resource_data)
+    dataset.add_update_resource(resource)
 
     showcase = Showcase({
         'name': '%s-showcase' % slugified_name,
