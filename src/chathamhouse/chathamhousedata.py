@@ -42,7 +42,7 @@ def check_name_dispersed(name):
     return False
 
 
-def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_types, datasets, downloader):
+def get_camp_non_camp_populations(noncamp_types, camp_types, camp_overrides, datasets, downloader):
     noncamp_types = noncamp_types.split(',')
     camp_types = camp_types.split(',')
     dataset_unhcr = None
@@ -90,10 +90,16 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
             except ValueError:
                 pass
     campname = row[location_ind]
-    accommodation_type = camp_accommodation_types.get(campname)
-    if accommodation_type is None:
-        accommodation_type = row[accommodation_ind]
-    accommodation_type = accommodation_type.lower()
+
+    def get_accommodation_type(name):
+        accom_type = camp_overrides['Accommodation Type'].get(name)
+        if accom_type is None:
+            accom_type = row[accommodation_ind]
+        else:
+            logger.info('Overriding accommodation type to %s for %s' % (accom_type, name))
+        return accom_type.lower()
+
+    accommodation_type = get_accommodation_type(campname)
 
     def match_camp_types(name, accom_type, pop, iso):
         if check_name_dispersed(name):
@@ -130,12 +136,19 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_accommodation_
             if match is False:
                 logger.info('Matched %s to ISO3: %s!' % (country, iso3))
         campname = row[location_ind]
-        accommodation_type = camp_accommodation_types.get(campname)
-        if accommodation_type is None:
-            accommodation_type = row[accommodation_ind]
-        accommodation_type = accommodation_type.lower()
+        accommodation_type = get_accommodation_type(campname)
         population = int(row[population_ind])
         match_camp_types(campname, accommodation_type, population, iso3)
+
+    for campname in sorted(camp_overrides['Population']):
+        if campname in unhcr_camp:
+            continue
+        iso3 = camp_overrides['Country'][campname]
+        accommodation_type = camp_overrides['Accommodation Type'][campname].lower()
+        population = camp_overrides['Population'][campname]
+        logger.info('Adding camp from override: %s (%s, %s): %d' % (campname, iso3, accommodation_type, population))
+        match_camp_types(campname, accommodation_type, population, iso3)
+
     return all_camps_per_country, unhcr_non_camp, unhcr_camp, unhcr_camp_excluded
 
 

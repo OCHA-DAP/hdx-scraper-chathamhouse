@@ -4,6 +4,8 @@
 Unit tests for Chatham House data.
 
 '''
+from pprint import pprint
+
 import pytest
 from datetime import datetime
 
@@ -11,7 +13,7 @@ from chathamhouse.chathamhousedata import get_camp_non_camp_populations, \
     get_worldbank_series, generate_dataset_and_showcase, check_name_dispersed
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected, \
-    country_totals_expected
+    country_totals_expected, all_camps_per_country_expected
 
 
 class TestChathamHouseData:
@@ -63,11 +65,16 @@ class TestChathamHouseData:
     def test_get_camp_non_camp_populations(self, datasets, downloader):
         all_camps_per_country, unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
             get_camp_non_camp_populations('individual,undefined', 'self-settled,planned,collective,reception',
-                                          {'Corum': 'Planned/managed camp'}, datasets, downloader)
+                                          {'Accommodation Type': {'Corum': 'Planned/managed camp',
+                                           'MyCamp': 'Planned/managed camp'},
+                                           'Country': {'MyCamp': 'ISL'},
+                                           'Population': {'MyCamp': 1000}},
+                                          datasets, downloader)
         country_totals = dict()
         for iso3 in all_camps_per_country:
             country_totals[iso3] = ChathamHouseModel.sum_population(all_camps_per_country, iso3)
         assert country_totals == country_totals_expected
+        assert all_camps_per_country == all_camps_per_country_expected
         assert unhcr_non_camp == unhcr_non_camp_expected
         assert unhcr_camp == unhcr_camp_expected
 

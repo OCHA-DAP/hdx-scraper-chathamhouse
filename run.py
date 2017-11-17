@@ -40,11 +40,13 @@ def main():
         constants = float_value_convert(downloader.download_tabular_key_value(configuration['constants_url']))
         constants['Lighting Grid Tier'] = int(constants['Lighting Grid Tier'])
 
-        camp_accommodation_types = downloader.download_tabular_key_value(configuration['camp_accommodation_tyes_url'])
+        camp_overrides = downloader.download_tabular_cols_as_dicts(configuration['camp_overrides_url'])
+        camp_overrides['Population'] = integer_value_convert(camp_overrides['Population'], dropfailedvalues=True)
+        camp_overrides['Country'] = key_value_convert(camp_overrides['Country'], valuefn=get_iso3)
         datasets = Dataset.search_in_hdx('displacement', fq='organization:unhcr')
         all_camps_per_country, unhcr_non_camp, unhcr_camp, unhcr_camp_excluded = \
             get_camp_non_camp_populations(constants['Non Camp Types'], constants['Camp Types'],
-                                          camp_accommodation_types, datasets, downloader)
+                                          camp_overrides, datasets, downloader)
         country_totals = copy.deepcopy(all_camps_per_country)
 
         world_bank_url = configuration['world_bank_url']
@@ -295,10 +297,10 @@ def main():
         file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
-    # dataset.update_from_yaml()
-    # dataset.create_in_hdx()
-    # showcase.create_in_hdx()
-    # showcase.add_dataset(dataset)
+    dataset.update_from_yaml()
+    dataset.create_in_hdx()
+    showcase.create_in_hdx()
+    showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':
