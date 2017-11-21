@@ -20,17 +20,11 @@ from hdx.utilities.downloader import Download
 from hdx.location.country import Country
 
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, get_worldbank_series, \
-    get_slumratios, get_camptypes, generate_dataset_and_showcase, check_name_dispersed
+    get_slumratios, get_camptypes, generate_dataset_and_showcase, check_name_dispersed, append_value, \
+    get_camptypes_fallbacks, get_iso3
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
 logger = logging.getLogger(__name__)
-
-
-def get_iso3(name):
-    iso3, match = Country.get_iso3_country_code_fuzzy(name, exception=ValueError)
-    if not match:
-        logger.info('Country %s matched to ISO3: %s!' % (name, iso3))
-    return iso3
 
 
 def main():
@@ -64,14 +58,23 @@ def main():
         cookinglpg = key_value_convert(ieadata['Cooking LPG'], keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
         elecgridtiers = key_value_convert(downloader.download_tabular_key_value(configuration['elec_grid_tiers_url']), keyfn=int, valuefn=float)
         elecgriddirectenergy = float_value_convert(downloader.download_tabular_key_value(configuration['elec_grid_direct_energy_url']))
-        noncampelecgridco2 = key_value_convert(downloader.download_tabular_key_value(configuration['noncamp_elec_grid_co2_url']),
-                                    keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
+        elecgridco2 = key_value_convert(downloader.download_tabular_key_value(configuration['elec_grid_co2_url']),
+                                        keyfn=get_iso3, valuefn=float, dropfailedkeys=True)
+
+        def get_elecgridco2(iso, inf):
+            elgridco2 = elecgridco2.get(iso)
+            if elgridco2 is None:
+                elgridco2, reg = model.calculate_regional_average('Grid CO2', elecgridco2, iso)
+                inf.append('elco2(%s)=%.3g' % (reg, elgridco2))
+            return elgridco2
 
         noncamptypes = downloader.download_tabular_cols_as_dicts(configuration['noncamp_types_url'])
         noncamplightingoffgridtypes = integer_value_convert(noncamptypes['Lighting OffGrid'])
         noncampcookingsolidtypes = integer_value_convert(noncamptypes['Cooking Solid'])
 
         camptypes = get_camptypes(configuration['camp_types_url'], downloader)
+        camptypes_fallbacks_offgrid, camptypes_fallbacks_solid = \
+            get_camptypes_fallbacks(configuration['camp_types_fallbacks_url'], downloader, keyfn=get_iso3)
 
         costs = downloader.download_tabular_cols_as_dicts(configuration['costs_url'])
         lightingoffgridcost = float_value_convert(costs['Lighting OffGrid'])
@@ -125,6 +128,10 @@ def main():
                             'Solid Capital Costs ($m)', 'Solid CO2_Emissions (t/yr)'])
         hxlheaders.extend(['#indicator+type+solid', '#indicator+text+cooking', '#indicator+value+solid+expenditure',
                            '#indicator+value+solid+capital_costs', '#indicator+value+solid+co2_emissions'])
+        if pop_type != 'Small Camp':
+            headers[-1].append('Info')
+            hxlheaders.append('#meta+info')
+
         results[i].append(hxlheaders)
 
     results.append(list())
@@ -137,108 +144,166 @@ def main():
     resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
+        info = list()
         population = model.sum_population(unhcr_non_camp, iso3, all_camps_per_country)
-        number_hh_by_pop_type = model.calculate_population(iso3, population, urbanratios, slumratios)
+        number_hh_by_pop_type = model.calculate_population(iso3, population, urbanratios, slumratios, info)
         country_elecappliances = elecappliances.get(iso3)
         if country_elecappliances is None:
-            country_elecappliances = model.calculate_regional_average('Electrical Appliances', elecappliances, iso3)
-        country_noncampelecgridco2 = noncampelecgridco2.get(iso3)
-        if country_noncampelecgridco2 is None:
-            country_noncampelecgridco2 = model.calculate_regional_average('Grid CO2', noncampelecgridco2, iso3)
+            country_elecappliances, region = \
+                model.calculate_regional_average('Electrical Appliances', elecappliances, iso3)
+            info.append('elap(%s)=%.3g' % (region, country_elecappliances))
+        country_elecgridco2 = get_elecgridco2(iso3, info)
         country_cookinglpg = cookinglpg.get(iso3)
         if country_cookinglpg is None:
-            country_cookinglpg = model.calculate_regional_average('LPG', cookinglpg, iso3)
+            country_cookinglpg, region = model.calculate_regional_average('LPG', cookinglpg, iso3)
+            info.append('lpg(%s)=%.3g' % (region, country_elecappliances))
 
+        cn = Country.get_country_name_from_iso3(iso3)
         for pop_type in number_hh_by_pop_type:
+            info2 = copy.deepcopy(info)
             number_hh = number_hh_by_pop_type[pop_type]
 
             country_elec_access = noncamp_elec_access[pop_type].get(iso3)
             if country_elec_access is None:
-                country_elec_access = model.calculate_regional_average('Grid access', noncamp_elec_access[pop_type],
-                                                                       iso3)
+                country_elec_access, region = \
+                    model.calculate_regional_average('Grid access', noncamp_elec_access[pop_type], iso3)
+                info2.append('elac(%s)=%.3g' % (region, country_elecappliances))
             hh_grid_access, hh_offgrid = model.calculate_hh_access(number_hh, country_elec_access)
 
             country_noncamp_nonsolid_access = noncamp_nonsolid_access[pop_type].get(iso3)
             if country_noncamp_nonsolid_access is None:
-                country_noncamp_nonsolid_access = model.calculate_regional_average('Nonsolid access',
-                                                                                   noncamp_nonsolid_access[pop_type],
-                                                                                   iso3)
+                country_noncamp_nonsolid_access, region = \
+                    model.calculate_regional_average('Nonsolid access', noncamp_nonsolid_access[pop_type], iso3)
+                info2.append('nsac(%s)=%.3g' % (region, country_elecappliances))
             hh_nonsolid_access, hh_no_nonsolid_access = \
                 model.calculate_hh_access(number_hh, country_noncamp_nonsolid_access)
 
             ge, gc = model.calculate_ongrid_lighting(hh_grid_access, elecgridtiers, country_elecappliances,
-                                                     country_noncampelecgridco2)
+                                                     country_elecgridco2)
             ne, nc = model.calculate_non_solid_cooking(hh_nonsolid_access, country_cookinglpg)
 
             for tier in model.tiers:
-                baseline_target = model.get_baseline_target(tier)
+                info3 = copy.deepcopy(info2)
                 noncamplightingoffgridtype = model.get_noncamp_type(noncamplightingoffgridtypes, pop_type, tier)
-                noncamplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
-                                                                noncamplightingoffgridtype)
-                oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, hh_offgrid, noncamplightingoffgridtype,
-                                                                lightingoffgridcost, elecgriddirectenergy,
-                                                                country_noncampelecgridco2)
                 noncampcookingsolidtype = model.get_noncamp_type(noncampcookingsolidtypes, pop_type, tier)
-                noncampcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
-                                                               noncamplightingoffgridtype)
-                se, sc, sco2 = model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access,
-                                                             noncampcookingsolidtype, cookingsolidcost)
 
-                cn = Country.get_country_name_from_iso3(iso3)
+                res = model.calculate_offgrid_solid(tier, hh_offgrid, lighting_type_descriptions,
+                                                    noncamplightingoffgridtype, lightingoffgridcost,
+                                                    elecgriddirectenergy, country_elecgridco2,
+                                                    hh_no_nonsolid_access, cooking_type_descriptions,
+                                                    noncampcookingsolidtype, cookingsolidcost)
+                noncamplightingtypedesc, oe, oc, oco2, noncampcookingtypedesc, se, sc, sco2 = res
+
                 population = model.calculate_population_from_hh(number_hh)
+                info3 = ','.join(info3)
                 row = [iso3, cn, population, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc,
-                       oe, oc, oco2, ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2]
+                       oe, oc, oco2, ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2, info3]
                 results[pop_types.index(pop_type.capitalize())].append(row)
 
+    camp_offgridtypes_in_countries = dict()
+    camp_solidtypes_in_countries = dict()
     missing_from_unhcr = list()
-    for camp in sorted(camptypes):
-        unhcrcampname = camp
+    for name in sorted(camptypes):
+        info = list()
+        unhcrcampname = name
         result = unhcr_camp.get(unhcrcampname)
         if result is None:
-            firstpart = camp.split(':')[0].strip()
+            firstpart = name.split(':')[0].strip()
             for unhcrcampname in sorted(unhcr_camp):
                 if firstpart in unhcrcampname:
                     result = unhcr_camp[unhcrcampname]
-                    logger.info('Matched first part of name of %s to UNHCR name: %s' % (camp, unhcrcampname))
+                    logger.info('Matched first part of name of %s to UNHCR name: %s' % (name, unhcrcampname))
+                    info.append('Matched %s' % firstpart)
                     break
         if result is None:
-            camptype = unhcr_camp_excluded.get(camp)
+            camptype = unhcr_camp_excluded.get(name)
             if camptype is None:
-                if check_name_dispersed(camp):
-                    logger.info('Camp %s from the spreadsheet has been treated as non-camp!' % camp)
+                if check_name_dispersed(name):
+                    logger.info('Camp %s from the spreadsheet has been treated as non-camp!' % name)
                 else:
-                    missing_from_unhcr.append(camp)
+                    missing_from_unhcr.append(name)
             else:
-                logger.info('Camp %s is in UNHCR data but has camp type %s!' % (camp, camptype))
+                logger.info('Camp %s is in UNHCR data but has camp type %s!' % (name, camptype))
             continue
         population, iso3, accommodation_type = result
         del all_camps_per_country[iso3][accommodation_type][unhcrcampname]
-        number_hh = model.calculate_number_hh(population)
-        camp_camptypes = camptypes[camp]
 
-        country_noncampelecgridco2 = noncampelecgridco2.get(iso3)
-        if country_noncampelecgridco2 is None:
-            country_noncampelecgridco2 = model.calculate_regional_average('Grid CO2', noncampelecgridco2, iso3)
+        camp_camptypes = camptypes[name]
+
+        number_hh = model.calculate_number_hh(population)
+        country_elecgridco2 = get_elecgridco2(iso3, info)
 
         for tier in model.tiers:
-            baseline_target = model.get_baseline_target(tier)
+            info2 = copy.deepcopy(info)
             camplightingoffgridtype = camp_camptypes['Lighting OffGrid %s' % tier]
-            camplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
-                                                         camplightingoffgridtype)
-            oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, number_hh, camplightingoffgridtype,
-                                                            lightingoffgridcost, elecgriddirectenergy,
-                                                            country_noncampelecgridco2)
             campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
-            campcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
-                                                        campcookingsolidtype)
-            se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
-                                                         cookingsolidcost)
+
+            res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                                camplightingoffgridtype, lightingoffgridcost,
+                                                elecgriddirectenergy, country_elecgridco2,
+                                                number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                                cookingsolidcost)
+            camplightingtypedesc, oe, oc, oco2, campcookingtypedesc, se, sc, sco2 = res
+
             cn = Country.get_country_name_from_iso3(iso3)
-            row = [iso3, cn, camp, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
-                   campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
+            info2 = ','.join(info2)
+            row = [iso3, cn, name, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+                   campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info2]
             results[pop_types.index('Camp')].append(row)
+            append_value(camp_offgridtypes_in_countries, iso3, tier, name, camplightingoffgridtype)
+            append_value(camp_solidtypes_in_countries, iso3, tier, name, campcookingsolidtype)
+
+    logger.info('The following camps are in the spreadsheet but not in the UNHCR data : %s' %
+                ', '.join(missing_from_unhcr))
+
+    for iso3 in sorted(country_totals):
+        info = list()
+        population = model.sum_population(country_totals, iso3)
+        cn = Country.get_country_name_from_iso3(iso3)
+        row = [iso3, cn, population]
+        results[len(results)-1].append(row)
+
+        extra_camp_types = all_camps_per_country[iso3]
+
+        country_elecgridco2 = get_elecgridco2(iso3, info)
+
+        for accommodation_type in sorted(extra_camp_types):
+            camps = extra_camp_types[accommodation_type]
+            for name in sorted(camps):
+                info2 = copy.deepcopy(info)
+                population = camps[name]
+                number_hh = model.calculate_number_hh(population)
+                offgrid_tiers_in_country = camp_offgridtypes_in_countries.get(iso3)
+                if offgrid_tiers_in_country is None:
+                    offgrid_tiers_in_country = camptypes_fallbacks_offgrid.get(iso3)
+                    if offgrid_tiers_in_country is None:
+                        logger.warning('For country %s, UNHCR data has extra camp %s with population %s and accommodation type %s' %
+                                       (cn, name, population, accommodation_type))
+                        continue
+                info2.append('UNHCR only')
+                for tier in offgrid_tiers_in_country:
+                    info3 = copy.deepcopy(info2)
+                    camplightingoffgridtype = offgrid_tiers_in_country[tier]
+                    if isinstance(camplightingoffgridtype, int):
+                        campcookingsolidtype = camptypes_fallbacks_solid[iso3][tier]
+                        info3.append('Fallback')
+                    else:
+                        camplightingoffgridtype = model.round(model.calculate_average(offgrid_tiers_in_country[tier]))
+                        campcookingsolidtype = model.round(model.calculate_average(camp_solidtypes_in_countries[iso3][tier]))
+
+                    res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                                        camplightingoffgridtype, lightingoffgridcost,
+                                                        elecgriddirectenergy, country_elecgridco2,
+                                                        number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                                        cookingsolidcost)
+                    camplightingtypedesc, oe, oc, oco2, campcookingtypedesc, se, sc, sco2 = res
+                    info3 = ','.join(info3)
+                    row = [iso3, cn, name, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
+                           campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info3]
+                    results[pop_types.index('Camp')].append(row)
 
     for region in sorted(smallcamps):
+        info = list()
         population = smallcamps[region]
         if not population or population == '-':
             continue
@@ -250,46 +315,24 @@ def main():
 
         elecco2 = small_camps_elecgridco2[region]
         if not elecco2 or elecco2 == '-':
+            info.append('Blank elco2')
             elecco2 = 0
 
         for tier in model.tiers:
-            baseline_target = model.get_baseline_target(tier)
+            info2 = copy.deepcopy(info)
             camplightingoffgridtype = region_camptypes['Lighting OffGrid %s' % tier]
-            oe, oc, oco2 = '', '', ''
-            camplightingtypedesc = ''
-            if camplightingoffgridtype:
-                camplightingtypedesc = model.get_description(lighting_type_descriptions, baseline_target,
-                                                             camplightingoffgridtype)
-                oe, oc, oco2 = model.calculate_offgrid_lighting(baseline_target, number_hh, camplightingoffgridtype,
-                                                                lightingoffgridcost, elecgriddirectenergy, elecco2)
             campcookingsolidtype = region_camptypes['Cooking Solid %s' % tier]
-            se, sc, sco2 = '', '', ''
-            campcookingtypedesc = ''
-            if campcookingsolidtype:
-                campcookingtypedesc = model.get_description(cooking_type_descriptions, baseline_target,
-                                                            campcookingsolidtype)
-                se, sc, sco2 = model.calculate_solid_cooking(baseline_target, number_hh, campcookingsolidtype,
-                                                             cookingsolidcost)
+
+            res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                                camplightingoffgridtype, lightingoffgridcost,
+                                                elecgriddirectenergy, elecco2,
+                                                number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                                cookingsolidcost)
+            camplightingtypedesc, oe, oc, oco2, campcookingtypedesc, se, sc, sco2 = res
+            info2 = ','.join(info2)
             row = [region, model.round(population), tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
-                   campcookingsolidtype, campcookingtypedesc, se, sc, sco2]
+                   campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info2]
             results[pop_types.index('Small Camp')].append(row)
-
-    logger.info('The following camps are in the spreadsheet but not in the UNHCR data : %s' %
-                ', '.join(missing_from_unhcr))
-
-    for iso3 in sorted(country_totals):
-        population = model.sum_population(country_totals, iso3)
-        cn = Country.get_country_name_from_iso3(iso3)
-        row = [iso3, cn, population]
-        results[len(results)-1].append(row)
-
-        extra_camp_types = all_camps_per_country[iso3]
-        for accommodation_type in sorted(extra_camp_types):
-            camps = extra_camp_types[accommodation_type]
-            for name in sorted(camps):
-                population = camps[name]
-                logger.warning('For country %s, UNHCR data has extra camp %s with population %s and accommodation type %s' %
-                               (cn, name, population, accommodation_type))
 
     folder = gettempdir()
     for i, _ in enumerate(results):
@@ -297,10 +340,10 @@ def main():
         file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
-    dataset.update_from_yaml()
-    dataset.create_in_hdx()
-    showcase.create_in_hdx()
-    showcase.add_dataset(dataset)
+    # dataset.update_from_yaml()
+    # dataset.create_in_hdx()
+    # showcase.create_in_hdx()
+    # showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':

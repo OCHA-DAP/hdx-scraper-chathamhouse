@@ -33,11 +33,7 @@ def country():
 
 @pytest.fixture(scope='session')
 def slumratios(downloader):
-    def path2url(path):
-        return six.moves.urllib_parse.urljoin("file://", six.moves.urllib.request.pathname2url(path))
-
-    url = path2url(abspath(join('tests', 'fixtures', 'MDG_Export_20170913_174700805.zip')))
-    return get_slumratios(url, downloader)
+    return get_slumratios(join('tests', 'fixtures', 'MDG_Export_20170913_174700805.zip'), downloader)
 
 
 @pytest.fixture(scope='session')

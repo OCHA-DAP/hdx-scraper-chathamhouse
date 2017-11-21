@@ -9,14 +9,30 @@ from pprint import pprint
 import pytest
 from datetime import datetime
 
+from os.path import join
+
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, \
-    get_worldbank_series, generate_dataset_and_showcase, check_name_dispersed
+    get_worldbank_series, generate_dataset_and_showcase, check_name_dispersed, get_slumratios, get_camptypes, \
+    get_camptypes_fallbacks, get_iso3
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected, \
-    country_totals_expected, all_camps_per_country_expected
+    country_totals_expected, all_camps_per_country_expected, camptypes_expected, smallcamptypes_expected, \
+    camptypes_fallbacks_expected
 
 
 class TestChathamHouseData:
+    @pytest.fixture(scope='class')
+    def camptypes(self, downloader):
+        return get_camptypes(join('tests', 'fixtures', 'Chatham House Constants and Lookups - CampTypes.csv'), downloader)
+
+    @pytest.fixture(scope='class')
+    def smallcamptypes(self, downloader):
+        return get_camptypes(join('tests', 'fixtures', 'Chatham House Constants and Lookups - SmallCampTypes.csv'), downloader)
+
+    @pytest.fixture(scope='class')
+    def camptypes_fallbacks(self, downloader):
+        return get_camptypes_fallbacks(join('tests', 'fixtures', 'Chatham House Constants and Lookups - CampTypeFallbacks.csv'), downloader, keyfn=get_iso3)
+
     @pytest.fixture(scope='function')
     def wbdownloader(self):
         class Response:
@@ -85,6 +101,13 @@ class TestChathamHouseData:
 
     def test_get_slumratios(self, slumratios):
         assert slumratios == slum_ratios_expected
+
+    def test_get_camptypes(self, camptypes, smallcamptypes):
+        assert camptypes == camptypes_expected
+        assert smallcamptypes == smallcamptypes_expected
+
+    def test_get_camptypes_fallbacks(self, camptypes_fallbacks):
+        assert camptypes_fallbacks == camptypes_fallbacks_expected
 
     def test_check_name_dispersed(self):
         assert check_name_dispersed('Burundi : Dispersed in the country / territory') is True

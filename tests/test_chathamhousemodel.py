@@ -23,6 +23,13 @@ class TestChathamHouseModel:
         return get_camptypes(join('tests', 'fixtures', 'Chatham House Constants and Lookups - SmallCampTypes.csv'),
                               downloader)
 
+    @pytest.fixture(scope='class')
+    def lighting_type_descriptions(self):
+        return {'Target 2': 'Grid', 'Target 1': 'Solar/diesel', 'Baseline 3': 'Electricity-dependent', 'Baseline 2': 'Kerosene-dependent', 'Baseline 6': '', 'Target 5': 'Solar/mini-grid', 'Target 6': '', 'Baseline 7': '-', 'Baseline 1': 'Torch-dependent', 'Baseline 5': '', 'Baseline 4': 'Solar-dependent', 'Target 7': '', 'Target 4': 'Grid', 'Target 3': 'Solar/mini-grid', 'Target 8': '-', 'Baseline 8': '-'}
+
+    @pytest.fixture(scope='class')
+    def cooking_type_descriptions(self):
+        return {'Target 2': 'Firewood mix', 'Target 1': 'Firewood-dependent', 'Baseline 3': 'Kerosene dependent', 'Baseline 2': 'Firewood mix', 'Baseline 6': '', 'Target 5': 'Alternative biomass', 'Target 6': 'Biomass briquettes', 'Baseline 7': '', 'Baseline 1': 'Firewood-dependent', 'Baseline 5': 'Alternative biomass', 'Baseline 4': 'LPG fuelled', 'Target 7': 'LPG II', 'Target 4': 'LPG fuelled', 'Target 3': 'Kerosene dependent', 'Target 8': '', 'Baseline 8': ''}
 
     @staticmethod
     def calculate_noncamp_offgrid_lighting(model, pop_type, tier, hh_offgrid, noncamplightingoffgridtypes,
@@ -59,7 +66,8 @@ class TestChathamHouseModel:
         return model.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access, campcookingsolidtype,
                                              cookingsolidcost)
 
-    def testNonCampModel(self, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost, slumratios):
+    def testNonCampModel(self, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost, slumratios,
+                         lighting_type_descriptions, cooking_type_descriptions):
         model = ChathamHouseModel({'Population Adjustment Factor': 0.7216833622,
                                    'Household Size': 5,
                                    'Electricity Cost': 25,
@@ -79,10 +87,10 @@ class TestChathamHouseModel:
         country_cookinglpg = cookinglpg[iso3]
 
         displaced_population = unhcr_non_camp[iso3]
-        number_hh_by_pop_type = model.calculate_population(iso3, displaced_population, urbanratios, slumratios)
+        number_hh_by_pop_type = model.calculate_population(iso3, displaced_population, urbanratios, slumratios, list())
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 7601.16815388216,
                                          'Urban': 3003.4688612998957}
-        number_hh_by_pop_type = model.calculate_population(iso3, displaced_population, urbanratios, {iso3: 0.658})
+        number_hh_by_pop_type = model.calculate_population(iso3, displaced_population, urbanratios, {iso3: 0.658}, list())
         assert number_hh_by_pop_type == {'Rural': 1389.3629848179437, 'Slum': 6977.851155989793,
                                          'Urban': 3626.785859192263}
         pop_type = 'Rural'
@@ -109,30 +117,54 @@ class TestChathamHouseModel:
                                        'Urban Target 3 Type': 7, 'Rural Baseline Type': 1, 'Rural Target 1 Type': 1,
                                        'Rural Target 2 Type': 3, 'Rural Target 3 Type': 7, 'Slum Baseline Type': 1,
                                        'Slum Target 1 Type': 1, 'Slum Target 2 Type': 3, 'Slum Target 3 Type': 7}
-        offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions = \
-            self.calculate_noncamp_offgrid_lighting(model, pop_type, 'Target 2', hh_offgrid,
-                                                    noncamplightingoffgridtypes, lightingoffgridcost,
-                                                    elecgriddirectenergy, country_noncampelecgridco2)
+        noncampcookingsolidtypes = {'Urban Baseline Type': 2, 'Urban Target 1 Type': 2, 'Urban Target 2 Type': 7,
+                                    'Urban Target 3 Type': 8, 'Rural Baseline Type': 1, 'Rural Target 1 Type': 1,
+                                    'Rural Target 2 Type': 7, 'Rural Target 3 Type': 8, 'Slum Baseline Type': 1,
+                                    'Slum Target 1 Type': 1, 'Slum Target 2 Type': 7, 'Slum Target 3 Type': 8}
+        tier = 'Target 2'
+        noncamplightingoffgridtype = noncamplightingoffgridtypes['%s %s Type' % (pop_type, tier)]
+        noncampcookingsolidtype = noncampcookingsolidtypes['%s %s Type' % (pop_type, tier)]
+        res = model.calculate_offgrid_solid(tier, hh_offgrid, lighting_type_descriptions,
+                                            noncamplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, country_noncampelecgridco2,
+                                            hh_no_nonsolid_access, cooking_type_descriptions, noncampcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
         assert offgrid_expenditure == 0.002157308870967376
         assert offgrid_capital_costs == 0.2328784963573492
         assert offgrid_co2_emissions == 8.238647374164904
         co2_emissions = grid_co2_emissions + offgrid_co2_emissions
         assert co2_emissions == 8.504008033281535
+        assert solid_expenditure == 0.09999499528651126
+        assert solid_capital_costs == 0.06182665282439849
+        assert solid_co2_emissions == 1405.3438532905193
+        co2_emissions = nonsolid_co2_emissions + solid_co2_emissions
+        assert co2_emissions == 1427.5816386580448
 
-        noncampcookingsolidtypes = {'Urban Baseline Type': 2, 'Urban Target 1 Type': 2, 'Urban Target 2 Type': 7,
-                                    'Urban Target 3 Type': 8, 'Rural Baseline Type': 1, 'Rural Target 1 Type': 1,
-                                    'Rural Target 2 Type': 7, 'Rural Target 3 Type': 8, 'Slum Baseline Type': 1,
-                                    'Slum Target 1 Type': 1, 'Slum Target 2 Type': 7, 'Slum Target 3 Type': 8}
-        solid_expenditure, solid_capital_costs, solid_co2_emissions = \
-            self.calculate_noncamp_solid_cooking(model, pop_type, 'Target 3', hh_no_nonsolid_access,
-                                                 noncampcookingsolidtypes, cookingsolidcost)
+        tier = 'Target 3'
+        noncamplightingoffgridtype = noncamplightingoffgridtypes['%s %s Type' % (pop_type, tier)]
+        noncampcookingsolidtype = noncampcookingsolidtypes['%s %s Type' % (pop_type, tier)]
+        res = model.calculate_offgrid_solid(tier, hh_offgrid, lighting_type_descriptions,
+                                            noncamplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, country_noncampelecgridco2,
+                                            hh_no_nonsolid_access, cooking_type_descriptions, noncampcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
+        assert offgrid_expenditure == 0.01213095423222568
+        assert offgrid_capital_costs == 0.6686980152740906
+        assert offgrid_co2_emissions == 46.32746639944912
+        co2_emissions = grid_co2_emissions + offgrid_co2_emissions
+        assert co2_emissions == 46.59282705856575
         assert solid_expenditure == 0.3275797640995024
         assert solid_capital_costs == 0.0989177392294985
         assert solid_co2_emissions == 290.5365064344328
         co2_emissions = nonsolid_co2_emissions + solid_co2_emissions
         assert co2_emissions == 312.7742918019583
 
-    def testCampModel(self, camptypes, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost):
+    def testCampModel(self, camptypes, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost,
+                      lighting_type_descriptions, cooking_type_descriptions):
         model = ChathamHouseModel({'Household Size': 5,
                                    'Electricity Cost': 25,
                                    'Cooking LPG NonCamp Price': 1.8,
@@ -146,19 +178,43 @@ class TestChathamHouseModel:
         number_hh = model.calculate_number_hh(population)
         camp_camptypes = camptypes.get(camp)
         elecco2 = noncampelecgridco2[iso3]
-        offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions = \
-            self.calculate_camp_offgrid_lighting(model, 'Baseline', number_hh, camp_camptypes, lightingoffgridcost,
-                                                 elecgriddirectenergy, elecco2)
+
+        tier = 'Baseline'
+        camplightingoffgridtype = camp_camptypes['Lighting OffGrid %s' % tier]
+        campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
+        res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                            camplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, elecco2,
+                                            number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
         assert offgrid_expenditure == 9.775621570875002
         assert offgrid_capital_costs == 4.1443202
         assert offgrid_co2_emissions == 15827.062570875001
-        solid_expenditure, solid_capital_costs, solid_co2_emissions = \
-            self.calculate_camp_solid_cooking(model, 'Target 1', number_hh, camp_camptypes, cookingsolidcost)
+        assert solid_expenditure == 17.732900221858348
+        assert solid_capital_costs == 0.272694513508602
+        assert solid_co2_emissions == 486665.6448458868
+
+        tier = 'Target 1'
+        camplightingoffgridtype = camp_camptypes['Lighting OffGrid %s' % tier]
+        campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
+        res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                            camplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, elecco2,
+                                            number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
+        assert offgrid_expenditure == 1.5779240444426306
+        assert offgrid_capital_costs == 8.06913039432437
+        assert offgrid_co2_emissions == 3835.58834969693
         assert solid_expenditure == 7.15870727889462
         assert solid_capital_costs == 9.20896466314155
         assert solid_co2_emissions == 189409.2845950458
 
-    def testSmallCampModel(self, small_camptypes, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost):
+    def testSmallCampModel(self, small_camptypes, lightingoffgridcost, elecgriddirectenergy, cookingsolidcost,
+                           lighting_type_descriptions, cooking_type_descriptions):
         model = ChathamHouseModel({'Household Size': 5,
                                    'Electricity Cost': 25,
                                    'Cooking LPG NonCamp Price': 1.8,
@@ -172,14 +228,36 @@ class TestChathamHouseModel:
         campgroup_camptypes = small_camptypes.get(camp_group)
         elecco2 = small_camps_elecgridco2[camp_group]
 
-        offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions = \
-            self.calculate_camp_offgrid_lighting(model, 'Baseline', number_hh, campgroup_camptypes, lightingoffgridcost,
-                                                 elecgriddirectenergy, elecco2)
+        tier = 'Baseline'
+        camplightingoffgridtype = campgroup_camptypes['Lighting OffGrid %s' % tier]
+        campcookingsolidtype = campgroup_camptypes['Cooking Solid %s' % tier]
+        res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                            camplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, elecco2,
+                                            number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
         assert offgrid_expenditure == 0.894614187294
         assert offgrid_capital_costs == 0.37926669120000006
         assert offgrid_co2_emissions == 1442.1696815239604
-        solid_expenditure, solid_capital_costs, solid_co2_emissions = \
-            self.calculate_camp_solid_cooking(model, 'Target 3', number_hh, campgroup_camptypes, cookingsolidcost)
+        assert solid_expenditure == ''
+        assert solid_capital_costs == ''
+        assert solid_co2_emissions == ''
+
+        tier = 'Target 3'
+        camplightingoffgridtype = campgroup_camptypes['Lighting OffGrid %s' % tier]
+        campcookingsolidtype = campgroup_camptypes['Cooking Solid %s' % tier]
+        res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                            camplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, elecco2,
+                                            number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
+        assert offgrid_expenditure == 0.15505425729584385
+        assert offgrid_capital_costs == 8.547099603928343
+        assert offgrid_co2_emissions == 592.1439284539138
         assert solid_expenditure == ''
         assert solid_capital_costs == ''
         assert solid_co2_emissions == ''
@@ -191,25 +269,47 @@ class TestChathamHouseModel:
         campgroup_camptypes = small_camptypes.get(camp_group)
         elecco2 = small_camps_elecgridco2[camp_group]
 
-        offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions = \
-            self.calculate_camp_offgrid_lighting(model, 'Target 2', number_hh, campgroup_camptypes, lightingoffgridcost,
-                                                 elecgriddirectenergy, elecco2)
+        tier = 'Target 2'
+        camplightingoffgridtype = campgroup_camptypes['Lighting OffGrid %s' % tier]
+        campcookingsolidtype = campgroup_camptypes['Cooking Solid %s' % tier]
+        res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                            camplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, elecco2,
+                                            number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
         assert offgrid_expenditure == ''
         assert offgrid_capital_costs == ''
         assert offgrid_co2_emissions == ''
-        solid_expenditure, solid_capital_costs, solid_co2_emissions = \
-            self.calculate_camp_solid_cooking(model, 'Baseline', number_hh, campgroup_camptypes, cookingsolidcost)
+        assert solid_expenditure == 0.28453285405596584
+        assert solid_capital_costs == 0.19577013729999998
+        assert solid_co2_emissions == 520.506277903452
+
+        tier = 'Baseline'
+        camplightingoffgridtype = campgroup_camptypes['Lighting OffGrid %s' % tier]
+        campcookingsolidtype = campgroup_camptypes['Cooking Solid %s' % tier]
+        res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
+                                            camplightingoffgridtype, lightingoffgridcost,
+                                            elecgriddirectenergy, elecco2,
+                                            number_hh, cooking_type_descriptions, campcookingsolidtype,
+                                            cookingsolidcost)
+        lighting_type_description, offgrid_expenditure, offgrid_capital_costs, offgrid_co2_emissions, \
+        cooking_type_description, solid_expenditure, solid_capital_costs, solid_co2_emissions = res
+        assert offgrid_expenditure == ''
+        assert offgrid_capital_costs == ''
+        assert offgrid_co2_emissions == ''
         assert solid_expenditure == 0.6505642389516176
         assert solid_capital_costs == 0.00916640744582953
         assert solid_co2_emissions == 11087.728057822153
 
     def test_calculate_regional_average(self):
         avg = ChathamHouseModel.calculate_regional_average('things', {'COM': 0.5, 'ETH': 0.1, 'AGO': 0.9}, 'DJI')
-        assert avg == 0.3
+        assert avg == (0.3, '014')
         avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'LSO': 0.7, 'DZA': 0.7}, 'DJI')
-        assert avg == 0.5
+        assert avg == (0.5, '202')
         avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'COM': 0.5, 'AIA': 0.9}, 'LBY')
-        assert avg == 0.4
+        assert avg == (0.4, '002')
 
     def test_sum_population(self):
         remdict = {'AFG': {'individual': {'a': 10, 'b': 20}}, 'BUR': {'self-settled': {'c': 12, 'd': 21}}}

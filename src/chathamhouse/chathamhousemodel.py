@@ -45,7 +45,7 @@ class ChathamHouseModel:
                 no_keys += 1
         if no_keys == 0:
             return None
-        return sum / no_keys
+        return float(sum) / no_keys
 
     @staticmethod
     def sum_population(totals_dict, iso3, remove_dict=None):
@@ -73,25 +73,27 @@ class ChathamHouseModel:
                 avg = cls.calculate_average(datadict, countries_in_region)
                 if avg:
                     logger.warning('%s: %s - Using %s (%s) average' % (iso3, val_type, regionname, region_level))
-                    return avg
+                    return avg, regioncode
             level -= 1
         logger.warning('%s: %s - Using global average' % (iso3, val_type))
-        return cls.calculate_average(datadict)
+        return cls.calculate_average(datadict), '001'
 
     def calculate_population_from_hh(self, hh):
         hh_size = self.constants['Household Size']
         return self.round(hh * hh_size)
 
-    def calculate_population(self, iso3, displaced_population, urbanratios, slumratios):
+    def calculate_population(self, iso3, displaced_population, urbanratios, slumratios, info):
         urbanratio = urbanratios.get(iso3)
         if not urbanratio:
-            urbanratio = self.calculate_regional_average('Urban ratio', urbanratios, iso3)
+            urbanratio, region = self.calculate_regional_average('Urban ratio', urbanratios, iso3)
+            info.append('ur(%s)=%.3g' % (region, urbanratio))
         combined_urbanratio = (1 - urbanratio) * self.constants['Population Adjustment Factor'] + urbanratio
         urban_displaced_population = displaced_population * combined_urbanratio
         rural_displaced_population = displaced_population - urban_displaced_population
         slumratio = slumratios.get(iso3)
         if not slumratio:
-            slumratio = self.calculate_regional_average('Slum ratio', slumratios, iso3)
+            slumratio, region = self.calculate_regional_average('Slum ratio', slumratios, iso3)
+            info.append('ur(%s)=%.3g' % (region, slumratio))
         slum_displaced_population = urban_displaced_population * slumratio
         urban_minus_slum_displaced_population = urban_displaced_population - slum_displaced_population
         number_hh = dict()
@@ -198,3 +200,24 @@ class ChathamHouseModel:
         co2_emissions = self.get_co2(scaled_number_hh, cookingsolidcost, baseline_target, cookingsolidtype) * 12.0
 
         return expenditure, capital_costs, co2_emissions
+
+    def calculate_offgrid_solid(self, tier, hh_offgrid, lighting_type_descriptions, lightingoffgridtype,
+                                lightingoffgridcost, elecgriddirectenergy, country_elecgridco2,
+                                hh_no_nonsolid_access, cooking_type_descriptions, cookingsolidtype, cookingsolidcost):
+        baseline_target = self.get_baseline_target(tier)
+        lightingtypedesc = ''
+        oe, oc, oco2 = '', '', ''
+        if lightingoffgridtype:
+            lightingtypedesc = self.get_description(lighting_type_descriptions, baseline_target,
+                                                    lightingoffgridtype)
+            oe, oc, oco2 = self.calculate_offgrid_lighting(baseline_target, hh_offgrid, lightingoffgridtype,
+                                                           lightingoffgridcost, elecgriddirectenergy,
+                                                           country_elecgridco2)
+        cookingtypedesc = ''
+        se, sc, sco2 = '', '', ''
+        if cookingsolidtype:
+            cookingtypedesc = self.get_description(cooking_type_descriptions, baseline_target,
+                                                   cookingsolidtype)
+            se, sc, sco2 = self.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access, cookingsolidtype,
+                                                        cookingsolidcost)
+        return lightingtypedesc, oe, oc, oco2, cookingtypedesc, se, sc, sco2

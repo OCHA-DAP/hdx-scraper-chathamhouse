@@ -12,7 +12,7 @@ import logging
 from hdx.data.dataset import Dataset
 from hdx.data.resource import Resource
 from hdx.data.showcase import Showcase
-from hdx.utilities.dictandlist import integer_value_convert
+from hdx.utilities.dictandlist import integer_value_convert, key_value_convert
 from hdx.location.country import Country
 from slugify import slugify
 
@@ -20,19 +20,19 @@ from slugify import slugify
 logger = logging.getLogger(__name__)
 
 
-def append_population(countrydict, name, accommodation_type, population, iso3):
-    accom_types = countrydict.get(iso3)
-    if accom_types is None:
-        accom_types = dict()
-        countrydict[iso3] = accom_types
-    camps = accom_types.get(accommodation_type)
+def append_value(countrydict, iso3, tier_or_type, name, value):
+    tiers_or_types = countrydict.get(iso3)
+    if tiers_or_types is None:
+        tiers_or_types = dict()
+        countrydict[iso3] = tiers_or_types
+    camps = tiers_or_types.get(tier_or_type)
     if camps is None:
         camps = dict()
-        accom_types[accommodation_type] = camps
+        tiers_or_types[tier_or_type] = camps
     existing_pop = camps.get(name)
     if existing_pop is None:
         existing_pop = 0
-    camps[name] = existing_pop + population
+    camps[name] = existing_pop + value
 
 
 def check_name_dispersed(name):
@@ -40,6 +40,13 @@ def check_name_dispersed(name):
     if 'dispersed' in lowername and ('country' in name.lower() or 'territory' in name.lower()):
         return True
     return False
+
+
+def get_iso3(name):
+    iso3, match = Country.get_iso3_country_code_fuzzy(name, exception=ValueError)
+    if not match:
+        logger.info('Country %s matched to ISO3: %s!' % (name, iso3))
+    return iso3
 
 
 def get_camp_non_camp_populations(noncamp_types, camp_types, camp_overrides, datasets, downloader):
@@ -113,13 +120,13 @@ def get_camp_non_camp_populations(noncamp_types, camp_types, camp_overrides, dat
         for noncamp_type in noncamp_types:
             if noncamp_type in accom_type:
                 found_camp_type = noncamp_type
-                append_population(unhcr_non_camp, name, found_camp_type, pop, iso)
+                append_value(unhcr_non_camp, iso, found_camp_type, name, pop)
                 break
         if found_camp_type is None:
-            append_population(unhcr_camp_excluded, name, accom_type, pop, iso)
-            append_population(all_camps_per_country, name, accom_type, pop, iso)
+            append_value(unhcr_camp_excluded, iso, accom_type, name, pop)
+            append_value(all_camps_per_country, iso, accom_type, name, pop)
         else:
-            append_population(all_camps_per_country, name, found_camp_type, pop, iso)
+            append_value(all_camps_per_country, iso, found_camp_type, name, pop)
 
     match_camp_types(campname, accommodation_type, population, iso3)
     for row in rowiter:
@@ -157,6 +164,23 @@ def get_camptypes(url, downloader):
     for key in camptypes:
         camptypes[key] = integer_value_convert(camptypes[key])
     return camptypes
+
+
+def get_camptypes_fallbacks(url, downloader, keyfn=lambda x: x):
+    camptypes = downloader.download_tabular_rows_as_dicts(url)
+    camptypes_offgrid = dict()
+    camptypes_solid = dict()
+    for key in camptypes:
+        new_key = keyfn(key)
+        camptypes_offgrid[new_key] = dict()
+        camptypes_solid[new_key] = dict()
+        for tier in camptypes[key]:
+            typeval = int(camptypes[key][tier])
+            if 'Lighting OffGrid' in tier:
+                camptypes_offgrid[new_key][tier.replace('Lighting OffGrid ', '')] = typeval
+            else:
+                camptypes_solid[new_key][tier.replace('Cooking Solid ', '')] = typeval
+    return camptypes_offgrid, camptypes_solid
 
 
 def get_worldbank_series(json_url, downloader):
