@@ -272,12 +272,16 @@ def main():
             for name in sorted(camps):
                 info2 = copy.deepcopy(info)
                 population = camps[name]
+                if population < 20000:
+                    logger.info('Ignoring extra camp %s from UNHCR data with population %s (<20000) and accommodation type %s in country %s.' %
+                                (name, population, accommodation_type, cn))
+                    continue
                 number_hh = model.calculate_number_hh(population)
                 offgrid_tiers_in_country = camp_offgridtypes_in_countries.get(iso3)
                 if offgrid_tiers_in_country is None:
                     offgrid_tiers_in_country = camptypes_fallbacks_offgrid.get(iso3)
-                    if offgrid_tiers_in_country is None:
-                        logger.warning('For country %s, UNHCR data has extra camp %s with population %s and accommodation type %s' %
+                    if not offgrid_tiers_in_country:
+                        logger.warning('Missing fallback for country %s, where UNHCR data has extra camp %s with population %s and accommodation type %s' %
                                        (cn, name, population, accommodation_type))
                         continue
                 info2.append('UNHCR only')
@@ -340,10 +344,10 @@ def main():
         file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
 
-    # dataset.update_from_yaml()
-    # dataset.create_in_hdx()
-    # showcase.create_in_hdx()
-    # showcase.add_dataset(dataset)
+    dataset.update_from_yaml()
+    dataset.create_in_hdx()
+    showcase.create_in_hdx()
+    showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':

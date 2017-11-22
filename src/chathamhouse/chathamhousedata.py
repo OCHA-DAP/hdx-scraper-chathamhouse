@@ -175,11 +175,14 @@ def get_camptypes_fallbacks(url, downloader, keyfn=lambda x: x):
         camptypes_offgrid[new_key] = dict()
         camptypes_solid[new_key] = dict()
         for tier in camptypes[key]:
-            typeval = int(camptypes[key][tier])
-            if 'Lighting OffGrid' in tier:
-                camptypes_offgrid[new_key][tier.replace('Lighting OffGrid ', '')] = typeval
-            else:
-                camptypes_solid[new_key][tier.replace('Cooking Solid ', '')] = typeval
+            try:
+                typeval = int(camptypes[key][tier])
+                if 'Lighting OffGrid' in tier:
+                    camptypes_offgrid[new_key][tier.replace('Lighting OffGrid ', '')] = typeval
+                else:
+                    camptypes_solid[new_key][tier.replace('Cooking Solid ', '')] = typeval
+            except ValueError:
+                pass
     return camptypes_offgrid, camptypes_solid
 
 
