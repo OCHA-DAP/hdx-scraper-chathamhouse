@@ -235,8 +235,12 @@ def main():
 
         for tier in model.tiers:
             info2 = copy.deepcopy(info)
-            camplightingoffgridtype = camp_camptypes['Lighting OffGrid %s' % tier]
-            campcookingsolidtype = camp_camptypes['Cooking Solid %s' % tier]
+            camplightingoffgridtype = camp_camptypes.get('Lighting OffGrid %s' % tier)
+            if camplightingoffgridtype is None:
+                logger.warning('No Lighting OffGrid %s for %s in %s' % (tier, name, cn))
+            campcookingsolidtype = camp_camptypes.get('Cooking Solid %s' % tier)
+            if campcookingsolidtype is None:
+                logger.warning('No Cooking Solid %s for %s in %s' % (tier, name, cn))
 
             res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
                                                 camplightingoffgridtype, lightingoffgridcost,
@@ -250,8 +254,10 @@ def main():
             row = [iso3, cn, name, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info2]
             results[pop_types.index('Camp')].append(row)
-            append_value(camp_offgridtypes_in_countries, iso3, tier, name, camplightingoffgridtype)
-            append_value(camp_solidtypes_in_countries, iso3, tier, name, campcookingsolidtype)
+            if camplightingoffgridtype:
+                append_value(camp_offgridtypes_in_countries, iso3, tier, name, camplightingoffgridtype)
+            if campcookingsolidtype:
+                append_value(camp_solidtypes_in_countries, iso3, tier, name, campcookingsolidtype)
 
     logger.info('The following camps are in the spreadsheet but not in the UNHCR data : %s' %
                 ', '.join(missing_from_unhcr))
@@ -292,8 +298,8 @@ def main():
                         campcookingsolidtype = camptypes_fallbacks_solid[iso3][tier]
                         info3.append('Fallback')
                     else:
-                        camplightingoffgridtype = model.round(model.calculate_average(offgrid_tiers_in_country[tier]))
-                        campcookingsolidtype = model.round(model.calculate_average(camp_solidtypes_in_countries[iso3][tier]))
+                        camplightingoffgridtype = model.calculate_mostfrequent(offgrid_tiers_in_country[tier])
+                        campcookingsolidtype = model.calculate_mostfrequent(camp_solidtypes_in_countries[iso3][tier])
 
                     res = model.calculate_offgrid_solid(tier, number_hh, lighting_type_descriptions,
                                                         camplightingoffgridtype, lightingoffgridcost,

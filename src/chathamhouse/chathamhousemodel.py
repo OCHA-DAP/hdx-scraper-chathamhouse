@@ -48,6 +48,24 @@ class ChathamHouseModel:
         return float(sum) / no_keys
 
     @staticmethod
+    def calculate_mostfrequent(datadict):
+        type_buckets = dict()
+        for valtype in datadict.values():
+            no = type_buckets.get(valtype)
+            if no is None:
+                no = 0
+            no += 1
+            type_buckets[valtype] = no
+        highestno = 0
+        highest_type = None
+        for valtype in type_buckets:
+            no = type_buckets[valtype]
+            if no > highestno:
+                highestno = no
+                highest_type = valtype
+        return highest_type
+
+    @staticmethod
     def sum_population(totals_dict, iso3, remove_dict=None):
         population = 0
         accom_types = totals_dict[iso3]

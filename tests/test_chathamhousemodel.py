@@ -311,6 +311,10 @@ class TestChathamHouseModel:
         avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'COM': 0.5, 'AIA': 0.9}, 'LBY')
         assert avg == (0.4, '002')
 
+    def test_calculate_mostfrequent(self):
+        mostfreq = ChathamHouseModel.calculate_mostfrequent({'a': 1, 'b': 5, 'c': 5, 'd': 3, 'e': 4})
+        assert mostfreq == 5
+
     def test_sum_population(self):
         remdict = {'AFG': {'individual': {'a': 10, 'b': 20}}, 'BUR': {'self-settled': {'c': 12, 'd': 21}}}
         pop = ChathamHouseModel.sum_population({'AFG': {'individual': {'a': 10, 'b': 20}}}, 'AFG', remdict)
