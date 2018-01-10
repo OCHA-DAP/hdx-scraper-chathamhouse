@@ -257,6 +257,22 @@ def generate_dataset_and_showcase(pop_types, today):
     resource = Resource(resource_data)
     dataset.add_update_resource(resource)
 
+    resource_data = {
+        'name': 'keyfigures_disagg.csv',
+        'description': 'Disaggregated MEI Key Figures',
+        'format': 'csv'
+    }
+    resource = Resource(resource_data)
+    dataset.add_update_resource(resource)
+
+    resource_data = {
+        'name': 'keyfigures.csv',
+        'description': 'MEI Key Figures',
+        'format': 'csv'
+    }
+    resource = Resource(resource_data)
+    dataset.add_update_resource(resource)
+
     showcase = Showcase({
         'name': '%s-showcase' % slugified_name,
         'title': 'Energy services for refugees and displaced people',
