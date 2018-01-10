@@ -149,9 +149,6 @@ def main():
     dataset, showcase = generate_dataset_and_showcase(pop_types, today)
     resources = dataset.get_resources()
 
-    total_grid = 0
-    total_offgrid = 0
-    total_spending = 0
     for iso3 in sorted(unhcr_non_camp):
         info = list()
         population = model.sum_population(unhcr_non_camp, iso3, all_camps_per_country)
@@ -169,8 +166,7 @@ def main():
 
         cn = Country.get_country_name_from_iso3(iso3)
         for pop_type in number_hh_by_pop_type:
-            pop_grid = 0
-            pop_offgrid = 0
+            model.reset_pop_counters()
             info2 = copy.deepcopy(info)
             number_hh = number_hh_by_pop_type[pop_type]
 
@@ -182,7 +178,7 @@ def main():
             hh_grid_access, hh_offgrid = model.calculate_hh_access(number_hh, country_elec_access)
             pop_grid_access = model.calculate_population_from_hh(hh_grid_access)
             pop_offgrid_access = model.calculate_population_from_hh(hh_offgrid)
-            pop_grid += pop_grid_access
+            model.pop_grid += pop_grid_access
 
             country_noncamp_nonsolid_access = noncamp_nonsolid_access[pop_type].get(iso3)
             if country_noncamp_nonsolid_access is None:
@@ -191,6 +187,9 @@ def main():
                 info2.append('nsac(%s)=%.3g' % (region, country_elecappliances))
             hh_nonsolid_access, hh_no_nonsolid_access = \
                 model.calculate_hh_access(number_hh, country_noncamp_nonsolid_access)
+            pop_biomass_access = model.calculate_population_from_hh(hh_no_nonsolid_access)
+            pop_nonbiomass_access = model.calculate_population_from_hh(hh_nonsolid_access)
+            model.pop_nonbiomass += pop_nonbiomass_access
 
             ge, gc = model.calculate_ongrid_lighting(hh_grid_access, elecgridtiers, country_elecappliances,
                                                      country_elecgridco2)
@@ -207,35 +206,19 @@ def main():
                                                     hh_no_nonsolid_access, cooking_type_descriptions,
                                                     noncampcookingsolidtype, cookingsolidcost)
                 noncamplightingtypedesc, oe, oc, oco2, noncampcookingtypedesc, se, sc, sco2 = res
-                if tier == model.tiers[0]:
-                    total_spending += oe
-                    total_spending += se
-                    if 'grid' in noncamplightingtypedesc.lower():
-                        pop_grid += pop_offgrid_access
-                    else:
-                        pop_offgrid += pop_offgrid_access
-                    total_grid += pop_grid
-                    total_offgrid += pop_offgrid
-                    row = [iso3, cn, pop_type, tier, se, noncampcookingtypedesc, '', '', oe, noncamplightingtypedesc, pop_grid, pop_offgrid]
-                    results[len(results)-2].append(row)
+                model.add_keyfigures(iso3, cn, pop_type, tier, se, oe, noncampcookingtypedesc, pop_biomass_access,
+                                     noncamplightingtypedesc, pop_offgrid_access, results, ne=ne, ge=ge)
                 population = model.calculate_population_from_hh(number_hh)
                 info3 = ','.join(info3)
                 row = [iso3, cn, population, tier, ge, gc, noncamplightingoffgridtype, noncamplightingtypedesc,
                        oe, oc, oco2, ne, nc, noncampcookingsolidtype, noncampcookingtypedesc, se, sc, sco2, info3]
                 results[pop_types.index(pop_type.capitalize())].append(row)
 
-    camp_biomass = 0
-    camp_nonbiomass = 0
-    camp_offgrid = 0
-    camp_grid = 0
     camp_offgridtypes_in_countries = dict()
     camp_solidtypes_in_countries = dict()
     missing_from_unhcr = list()
     for name in sorted(camptypes):
-        pop_biomass = 0
-        pop_nonbiomass = 0
-        pop_grid = 0
-        pop_offgrid = 0
+        model.reset_pop_counters()
         info = list()
         unhcrcampname = name
         result = unhcr_camp.get(unhcrcampname)
@@ -280,26 +263,9 @@ def main():
                                                 number_hh, cooking_type_descriptions, campcookingsolidtype,
                                                 cookingsolidcost)
             camplightingtypedesc, oe, oc, oco2, campcookingtypedesc, se, sc, sco2 = res
-            if tier == model.tiers[0]:
-                total_spending += oe
-                total_spending += se
-                if 'firewood' in campcookingtypedesc.lower():
-                    pop_biomass += population
-                else:
-                    pop_nonbiomass += population
-                if 'grid' in camplightingtypedesc.lower():
-                    pop_grid += population
-                else:
-                    pop_offgrid += population
-                camp_biomass += pop_biomass
-                camp_nonbiomass += pop_nonbiomass
-                camp_grid += pop_grid
-                camp_offgrid += pop_offgrid
-                row = [iso3, cn, name, tier, se, campcookingtypedesc, pop_nonbiomass, pop_biomass, oe,
-                       camplightingtypedesc, pop_grid, pop_offgrid]
-                results[len(results)-2].append(row)
-
             cn = Country.get_country_name_from_iso3(iso3)
+            model.add_keyfigures(iso3, cn, name, tier, se, oe, campcookingtypedesc, population,
+                                 camplightingtypedesc, population, results)
             info2 = ','.join(info2)
             row = [iso3, cn, name, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info2]
@@ -326,10 +292,7 @@ def main():
         for accommodation_type in sorted(extra_camp_types):
             camps = extra_camp_types[accommodation_type]
             for name in sorted(camps):
-                pop_biomass = 0
-                pop_nonbiomass = 0
-                pop_grid = 0
-                pop_offgrid = 0
+                model.reset_pop_counters()
                 info2 = copy.deepcopy(info)
                 population = camps[name]
                 if population < 20000:
@@ -361,34 +324,15 @@ def main():
                                                         number_hh, cooking_type_descriptions, campcookingsolidtype,
                                                         cookingsolidcost)
                     camplightingtypedesc, oe, oc, oco2, campcookingtypedesc, se, sc, sco2 = res
-                    if tier == model.tiers[0]:
-                        total_spending += oe
-                        total_spending += se
-                        if 'firewood' in campcookingtypedesc.lower():
-                            pop_biomass += population
-                        else:
-                            pop_nonbiomass += population
-                        if 'grid' in camplightingtypedesc.lower():
-                            pop_grid += population
-                        else:
-                            pop_offgrid += population
-                        camp_biomass += pop_biomass
-                        camp_nonbiomass += pop_nonbiomass
-                        camp_grid += pop_grid
-                        camp_offgrid += pop_offgrid
-                        row = [iso3, cn, name, tier, se, campcookingtypedesc, pop_nonbiomass, pop_biomass, oe,
-                               camplightingtypedesc, pop_grid, pop_offgrid]
-                        results[len(results)-2].append(row)
+                    model.add_keyfigures(iso3, cn, name, tier, se, oe, campcookingtypedesc, population,
+                                         camplightingtypedesc, population, results)
                     info3 = ','.join(info3)
                     row = [iso3, cn, name, population, tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                            campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info3]
                     results[pop_types.index('Camp')].append(row)
 
     for region in sorted(smallcamps):
-        pop_biomass = 0
-        pop_nonbiomass = 0
-        pop_grid = 0
-        pop_offgrid = 0
+        model.reset_pop_counters()
         info = list()
         population = smallcamps[region]
         if not population or population == '-':
@@ -415,28 +359,8 @@ def main():
                                                 number_hh, cooking_type_descriptions, campcookingsolidtype,
                                                 cookingsolidcost)
             camplightingtypedesc, oe, oc, oco2, campcookingtypedesc, se, sc, sco2 = res
-            if tier == model.tiers[0]:
-                if oe:
-                    total_spending += oe
-                if se:
-                    total_spending += se
-                if campcookingtypedesc:
-                    if 'firewood' in campcookingtypedesc.lower():
-                        pop_biomass += population
-                    else:
-                        pop_nonbiomass += population
-                if camplightingtypedesc:
-                    if 'grid' in camplightingtypedesc.lower():
-                        pop_grid += population
-                    else:
-                        pop_offgrid += population
-                camp_biomass += pop_biomass
-                camp_nonbiomass += pop_nonbiomass
-                camp_grid += pop_grid
-                camp_offgrid += pop_offgrid
-                row = ['', region, 'small camp', tier, se, campcookingtypedesc, pop_nonbiomass, pop_biomass, oe,
-                       camplightingtypedesc, pop_grid, pop_offgrid]
-                results[len(results)-2].append(row)
+            model.add_keyfigures('', region, 'small camp', tier, se, oe, campcookingtypedesc, population,
+                                 camplightingtypedesc, population, results)
             info2 = ','.join(info2)
             row = [region, model.round(population), tier, camplightingoffgridtype, camplightingtypedesc, oe, oc, oco2,
                    campcookingsolidtype, campcookingtypedesc, se, sc, sco2, info2]
@@ -445,16 +369,13 @@ def main():
     date = today.date().isoformat()
     source = 'Estimate from the Moving Energy Initiative'
     data_url = 'https://data.humdata.org/dataset/energy-consumption-of-refugees-and-displaced-people'
-    camp_percentage_biomass = camp_biomass / (camp_nonbiomass + camp_biomass)
-    total_grid += camp_grid
-    total_offgrid += camp_offgrid
-    percentage_offgrid = total_offgrid / (total_grid + total_offgrid)
-    camp_percentage_offgrid = camp_offgrid / (camp_grid + camp_offgrid)
-    total_spending = round(total_spending * 1000000)
-    rows = [['MEI01', '% of Refugees and Displaced People in Camps Cooking with Biomass', camp_percentage_biomass, date, source, data_url, '', '', 'ratio'],
-            ['MEI02', '% of Refugees and Displaced People Off-Grid', percentage_offgrid, date, source, data_url, '', '', 'ratio'],
-            ['MEI03', '% of Refugees and Displaced People in Camps Off-Grid', camp_percentage_offgrid, date, source, data_url, '', '', 'ratio'],
-            ['MEI04', 'Total Annual Energy Spending by Refugees and Displaced People', total_spending, date, source, data_url, '', '', 'dollars_million']]
+    rows = [['MEI01', '% of Refugees and Displaced People Cooking with Biomass in Camps',
+             model.get_camp_percentage_biomass(), date, source, data_url, '', '', 'ratio'],
+            ['MEI02', '% of Refugees and Displaced People Off-Grid in Camps',
+             model.get_camp_percentage_offgrid(), date, source, data_url, '', '', 'ratio'],
+            ['MEI03', 'Total Annual Energy Spending by Refugees and Displaced People',
+             model.get_total_spending(), date, source, data_url, '', '', 'dollars_million'],
+            ['MEI04', 'No. of Countries Hosting Refugees and Displaced People', len(country_totals), date, source, data_url, '', '', 'count']]
     results[len(results)-1].extend(rows)
 
     folder = gettempdir()
@@ -468,6 +389,7 @@ def main():
     for resource in dataset.get_resources():
         name = resource['name'].lower()
         if 'figures' in name and 'disagg' not in name:
+            logger.info('Updating key figures datastore for %s' % name)
             resource.update_datastore_for_topline(path=file_to_upload)
     showcase.create_in_hdx()
     showcase.add_dataset(dataset)

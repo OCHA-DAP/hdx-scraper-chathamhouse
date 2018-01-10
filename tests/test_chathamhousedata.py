@@ -126,7 +126,12 @@ class TestChathamHouseData:
                                            {'name': 'small_camps_consumption.csv', 'format': 'csv',
                                             'description': 'Small camps energy consumption of refugees and displaced people'},
                                            {'name': 'population.csv', 'format': 'csv',
-                                            'description': 'UNHCR displaced population totals'}]
+                                            'description': 'UNHCR displaced population totals'},
+                                           {'name': 'keyfigures_disagg.csv', 'format': 'csv',
+                                            'description': 'Disaggregated MEI Key Figures',},
+                                           {'name': 'keyfigures.csv', 'format': 'csv',
+                                            'description': 'MEI Key Figures'}]
+
         assert showcase == {'title': 'Energy services for refugees and displaced people',
                             'notes': 'Click the image on the right to go to the energy services model',
                             'image_url': 'https://www.chathamhouse.org/sites/files/chathamhouse/styles/large_square_/public/images/Combo_large_LCP%20%282%29.jpg?itok=0HgBOAyu',

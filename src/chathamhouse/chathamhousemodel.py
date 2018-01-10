@@ -24,6 +24,16 @@ class ChathamHouseModel:
 
     def __init__(self, constants):
         self.constants = constants
+        self.total_biomass = 0
+        self.total_nonbiomass = 0
+        self.total_grid = 0
+        self.total_offgrid = 0
+        self.total_spending = 0
+        self.camp_biomass = 0
+        self.camp_nonbiomass = 0
+        self.camp_grid = 0
+        self.camp_offgrid = 0
+        self.reset_pop_counters()
 
     def calculate_number_hh(self, pop):
         hh_size = self.constants['Household Size']
@@ -239,3 +249,57 @@ class ChathamHouseModel:
             se, sc, sco2 = self.calculate_solid_cooking(baseline_target, hh_no_nonsolid_access, cookingsolidtype,
                                                         cookingsolidcost)
         return lightingtypedesc, oe, oc, oco2, cookingtypedesc, se, sc, sco2
+
+    def reset_pop_counters(self):
+        self.pop_biomass = 0
+        self.pop_nonbiomass = 0
+        self.pop_grid = 0
+        self.pop_offgrid = 0
+
+    def add_keyfigures(self, iso3, country, camp, tier, se, oe, cookingtypedesc, cooking_pop, lightingtypedesc, lighting_pop, results, ne=0, ge=0):
+        if tier == self.tiers[0]:
+            cooking_expenditure = ne
+            lighting_expenditure = ge
+            if se:
+                cooking_expenditure += se
+            if oe:
+                lighting_expenditure += oe
+            self.total_spending += cooking_expenditure + lighting_expenditure
+            if cookingtypedesc:
+                if 'firewood' in cookingtypedesc.lower():
+                    self.pop_biomass += cooking_pop
+                else:
+                    self.pop_nonbiomass += cooking_pop
+            if lightingtypedesc:
+                if 'grid' in lightingtypedesc.lower():
+                    self.pop_grid += lighting_pop
+                else:
+                    self.pop_offgrid += lighting_pop
+            if camp not in ['Urban', 'Slum', 'Rural']:
+                self.camp_biomass += self.pop_biomass
+                self.camp_nonbiomass += self.pop_nonbiomass
+                self.camp_grid += self.pop_grid
+                self.camp_offgrid += self.pop_offgrid
+            self.total_biomass += self.pop_biomass
+            self.total_nonbiomass += self.pop_nonbiomass
+            self.total_grid += self.pop_grid
+            self.total_offgrid += self.pop_offgrid
+            row = [iso3, country, camp, tier,
+                   cooking_expenditure, cookingtypedesc, self.pop_nonbiomass, self.pop_biomass,
+                   lighting_expenditure, lightingtypedesc, self.pop_grid, self.pop_offgrid]
+            results[len(results) - 2].append(row)
+
+    def get_percentage_biomass(self):
+        return self.total_biomass / (self.total_nonbiomass + self.total_biomass)
+
+    def get_camp_percentage_biomass(self):
+        return self.camp_biomass / (self.camp_nonbiomass + self.camp_biomass)
+
+    def get_percentage_offgrid(self):
+        return self.total_offgrid / (self.total_grid + self.total_offgrid)
+
+    def get_camp_percentage_offgrid(self):
+        return self.camp_offgrid / (self.camp_grid + self.camp_offgrid)
+
+    def get_total_spending(self):
+        return round(self.total_spending) * 1000000

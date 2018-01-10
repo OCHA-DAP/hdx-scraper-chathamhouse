@@ -320,3 +320,95 @@ class TestChathamHouseModel:
         pop = ChathamHouseModel.sum_population({'AFG': {'individual': {'a': 10, 'b': 20}}}, 'AFG', remdict)
         assert pop == 30
         assert remdict == {'AFG': {'individual': {}}, 'BUR': {'self-settled': {'c': 12, 'd': 21}}}
+
+    def test_reset_pop_counters(self):
+        model = ChathamHouseModel(dict())
+        model.reset_pop_counters()
+        assert model.pop_biomass == 0
+        assert model.pop_nonbiomass == 0
+        assert model.pop_grid == 0
+        assert model.pop_offgrid == 0
+
+    def test_add_keyfigures(self):
+        model = ChathamHouseModel(dict())
+        iso3 = 'AFG'
+        country = 'Afghanistan'
+        camp = 'Urban'
+        tier = 'Baseline'
+        se = 100
+        oe = 200
+        cookingtypedesc = 'Firewood/Charcoal Mix'
+        cooking_pop = 1000
+        lightingtypedesc = 'Torch Dependent'
+        lighting_pop = 2000
+        results = [list(), None]
+        ne = 10000
+        ge = 5000
+        model.add_keyfigures(iso3, country, camp, tier, se, oe, cookingtypedesc, cooking_pop,
+                             lightingtypedesc, lighting_pop, results, ne=ne, ge=ge)
+        model.reset_pop_counters()
+        cookingtypedesc = 'LPG/Natural Gas'
+        cooking_pop = 3500
+        lightingtypedesc = 'On grid'
+        lighting_pop = 1500
+        model.add_keyfigures(iso3, country, camp, tier, se, oe, cookingtypedesc, cooking_pop,
+                             lightingtypedesc, lighting_pop, results, ne=ne, ge=ge)
+        model.reset_pop_counters()
+        cookingtypedesc = 'Firewood dependent'
+        cooking_pop = 7000
+        model.add_keyfigures(iso3, country, camp, tier, se, oe, cookingtypedesc, cooking_pop,
+                             lightingtypedesc, lighting_pop, results, ne=ne, ge=ge)
+        assert results[0] == [['AFG', 'Afghanistan', 'Urban', 'Baseline', 10100, 'Firewood/Charcoal Mix', 0, 1000, 5200, 'Torch Dependent', 0, 2000],
+                              ['AFG', 'Afghanistan', 'Urban', 'Baseline', 10100, 'LPG/Natural Gas', 3500, 0, 5200, 'On grid', 1500, 0],
+                              ['AFG', 'Afghanistan', 'Urban', 'Baseline', 10100, 'Firewood dependent', 0, 7000, 5200, 'On grid', 1500, 0]]
+        assert model.get_percentage_biomass() == 8000 / 11500
+        with pytest.raises(ZeroDivisionError):
+            model.get_camp_percentage_biomass()
+        assert model.get_percentage_offgrid() == 2000 / 5000
+        with pytest.raises(ZeroDivisionError):
+            model.get_camp_percentage_offgrid()
+        assert model.get_total_spending() == 45900000000
+        model.reset_pop_counters()
+        camp = 'lala'
+        cookingtypedesc = 'Alternative biomass'
+        lightingtypedesc = 'Kerosene dependent'
+        model.add_keyfigures(iso3, country, camp, tier, se, oe, cookingtypedesc, cooking_pop,
+                             lightingtypedesc, lighting_pop, results)
+        assert results[0] == [['AFG', 'Afghanistan', 'Urban', 'Baseline', 10100, 'Firewood/Charcoal Mix', 0, 1000, 5200, 'Torch Dependent', 0, 2000],
+                              ['AFG', 'Afghanistan', 'Urban', 'Baseline', 10100, 'LPG/Natural Gas', 3500, 0, 5200, 'On grid', 1500, 0],
+                              ['AFG', 'Afghanistan', 'Urban', 'Baseline', 10100, 'Firewood dependent', 0, 7000, 5200, 'On grid', 1500, 0],
+                              ['AFG', 'Afghanistan', 'lala', 'Baseline', 100, 'Alternative biomass', 7000, 0, 200, 'Kerosene dependent', 0, 1500]]
+        assert model.get_total_spending() == 46200000000
+        assert model.get_percentage_biomass() == 8000 / 18500
+        assert model.get_camp_percentage_biomass() == 0
+        assert model.get_percentage_offgrid() == 3500 / 6500
+        assert model.get_camp_percentage_offgrid() == 1500 / 1500
+
+    def test_get_percentage_biomass(self):
+        model = ChathamHouseModel(dict())
+        model.total_biomass = 1
+        model.total_nonbiomass = 2
+        assert model.get_percentage_biomass() == 1 / 3
+
+    def test_get_camp_percentage_biomass(self):
+        model = ChathamHouseModel(dict())
+        model.camp_biomass = 2
+        model.camp_nonbiomass = 1
+        assert model.get_camp_percentage_biomass() == 2 / 3
+
+    def test_get_percentage_offgrid(self):
+        model = ChathamHouseModel(dict())
+        model.total_offgrid = 2
+        model.total_grid = 3
+        assert model.get_percentage_offgrid() == 2 / 5
+
+    def test_get_camp_percentage_offgrid(self):
+        model = ChathamHouseModel(dict())
+        model.camp_offgrid = 3
+        model.camp_grid = 2
+        assert model.get_camp_percentage_offgrid() == 3 / 5
+
+    def test_get_total_spending(self):
+        model = ChathamHouseModel(dict())
+        model.total_spending = 3515.6789123
+        assert model.get_total_spending() == 3516000000
