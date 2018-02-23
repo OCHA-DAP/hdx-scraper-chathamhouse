@@ -6,7 +6,7 @@ Top level script. Calls other functions that generate datasets that this script 
 """
 import copy
 import logging
-from os.path import join
+from os.path import join, expanduser
 
 from datetime import datetime
 from tempfile import gettempdir
@@ -396,4 +396,4 @@ def main():
 
 
 if __name__ == '__main__':
-    facade(main, hdx_site='feature', project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='feature', user_agent_config_yaml=join(expanduser('~'), '.chathamhouseuseragent.yml'), project_config_yaml=join('config', 'project_configuration.yml'))

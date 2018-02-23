@@ -15,7 +15,7 @@ from chathamhouse.chathamhousedata import get_slumratios
 
 @pytest.fixture(scope='session')
 def configuration():
-    Configuration._create(hdx_read_only=True)
+    Configuration._create(hdx_read_only=True, user_agent='test')
     Locations.set_validlocations([{'name': 'world', 'title': 'World'}])
 
 
