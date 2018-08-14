@@ -237,7 +237,7 @@ def generate_dataset_and_showcase(pop_types, today):
     dataset.set_expected_update_frequency('Every month')
     dataset.add_other_location('world')
 
-    tags = ['HXL', 'energy', 'refugees', 'idps']
+    tags = ['HXL', 'energy', 'refugees', 'internally displaced persons - idp']
     dataset.add_tags(tags)
 
     for pop_type in pop_types:
@@ -278,7 +278,7 @@ def generate_dataset_and_showcase(pop_types, today):
         'title': 'Energy services for refugees and displaced people',
         'notes': 'Click the image on the right to go to the energy services model',
         'url': 'http://www.sciencedirect.com/science/article/pii/S2211467X16300396',
-        'image_url': 'https://www.chathamhouse.org/sites/files/chathamhouse/styles/large_square_/public/images/Combo_large_LCP%20%282%29.jpg?itok=0HgBOAyu'
+        'image_url': 'https://ars.els-cdn.com/content/image/X2211467X.jpg'
     })
     showcase.add_tags(tags)
 

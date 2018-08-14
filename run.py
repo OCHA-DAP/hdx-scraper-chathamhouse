@@ -11,8 +11,10 @@ from os.path import join, expanduser
 from datetime import datetime
 from tempfile import gettempdir
 
-from hdx.data.dataset import Dataset
+from hdx.facades import logging_kwargs
+logging_kwargs.update({'logging_config_yaml': join('config', 'logging_configuration.yml')})
 from hdx.facades.hdx_scraperwiki import facade
+from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.utilities.dictandlist import avg_dicts, float_value_convert, key_value_convert, integer_value_convert, \
     write_list_to_csv
@@ -50,7 +52,7 @@ def main():
         noncamp_elec_access = dict()
         noncamp_elec_access['Urban'] = get_worldbank_series(world_bank_url % configuration['urban_elec_wb'], downloader)
         noncamp_elec_access['Rural'] = get_worldbank_series(world_bank_url % configuration['rural_elec_wb'], downloader)
-        noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Urban'], noncamp_elec_access['Rural'])
+        noncamp_elec_access['Slum'] = avg_dicts(noncamp_elec_access['Rural'], noncamp_elec_access['Urban'])
 
         ieadata = downloader.download_tabular_cols_as_dicts(configuration['iea_data_url'])
         elecappliances = key_value_convert(ieadata['Electrical Appliances'], keyfn=get_iso3, valuefn=float,
@@ -382,7 +384,8 @@ def main():
     file_to_upload = None
     for i, _ in enumerate(results):
         resource = resources[i]
-        file_to_upload = write_list_to_csv(results[i], folder, resource['name'], headers=headers[i])
+        file_to_upload = join(folder, resource['name'])
+        write_list_to_csv(results[i], file_to_upload, headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
     dataset.update_from_yaml()
     dataset.create_in_hdx()
@@ -396,4 +399,4 @@ def main():
 
 
 if __name__ == '__main__':
-    facade(main, hdx_site='feature', user_agent_config_yaml=join(expanduser('~'), '.chathamhouseuseragent.yml'), project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='test', user_agent_config_yaml=join(expanduser('~'), '.chathamhouseuseragent.yml'), project_config_yaml=join('config', 'project_configuration.yml'))

@@ -120,7 +120,7 @@ class TestChathamHouseData:
                            'owner_org': '0c6bf79f-504c-4ba5-9fdf-c8cc893c8b2f', 'dataset_date': '09/15/2017',
                            'name': 'energy-consumption-of-refugees-and-displaced-people',
                            'groups': [{'name': 'world'}], 'tags': [{'name': 'HXL'}, {'name': 'energy'},
-                                                                   {'name': 'refugees'}, {'name': 'idps'}]}
+                                                                   {'name': 'refugees'}, {'name': 'internally displaced persons - idp'}]}
         assert dataset.get_resources() == [{'name': 'urban_consumption.csv', 'format': 'csv',
                                             'description': 'Urban energy consumption of refugees and displaced people'},
                                            {'name': 'small_camps_consumption.csv', 'format': 'csv',
@@ -134,7 +134,7 @@ class TestChathamHouseData:
 
         assert showcase == {'title': 'Energy services for refugees and displaced people',
                             'notes': 'Click the image on the right to go to the energy services model',
-                            'image_url': 'https://www.chathamhouse.org/sites/files/chathamhouse/styles/large_square_/public/images/Combo_large_LCP%20%282%29.jpg?itok=0HgBOAyu',
+                            'image_url': 'https://ars.els-cdn.com/content/image/X2211467X.jpg',
                             'name': 'energy-consumption-of-refugees-and-displaced-people-showcase',
-                            'tags': [{'name': 'HXL'}, {'name': 'energy'}, {'name': 'refugees'}, {'name': 'idps'}],
+                            'tags': [{'name': 'HXL'}, {'name': 'energy'}, {'name': 'refugees'}, {'name': 'internally displaced persons - idp'}],
                             'url': 'http://www.sciencedirect.com/science/article/pii/S2211467X16300396'}
