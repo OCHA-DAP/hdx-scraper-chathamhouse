@@ -305,11 +305,11 @@ class TestChathamHouseModel:
 
     def test_calculate_regional_average(self):
         avg = ChathamHouseModel.calculate_regional_average('things', {'COM': 0.5, 'ETH': 0.1, 'AGO': 0.9}, 'DJI')
-        assert avg == (0.3, '014')
+        assert avg == (0.3, 14)
         avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'LSO': 0.7, 'DZA': 0.7}, 'DJI')
-        assert avg == (0.5, '202')
+        assert avg == (0.5, 202)
         avg = ChathamHouseModel.calculate_regional_average('things', {'AGO': 0.3, 'COM': 0.5, 'AIA': 0.9}, 'LBY')
-        assert avg == (0.4, '002')
+        assert avg == (0.4, 2)
 
     def test_calculate_mostfrequent(self):
         mostfreq = ChathamHouseModel.calculate_mostfrequent({'a': 1, 'b': 5, 'c': 5, 'd': 3, 'e': 4})
