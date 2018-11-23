@@ -1,5 +1,5 @@
 ### Chatham House Model
-[![Build Status](https://travis-ci.org/OCHA-DAP/hdxscraper-chathamhouse.svg?branch=master&ts=1)](https://travis-ci.org/OCHA-DAP/hdxscraper-chathamhouse) [![Coverage Status](https://coveralls.io/repos/github/OCHA-DAP/hdxscraper-chathamhouse/badge.svg?branch=master&ts=1)](https://coveralls.io/github/OCHA-DAP/hdxscraper-chathamhouse?branch=master)
+[![Build Status](https://travis-ci.org/OCHA-DAP/hdx-scraper-chathamhouse.svg?branch=master&ts=1)](https://travis-ci.org/OCHA-DAP/hdx-scraper-chathamhouse) [![Coverage Status](https://coveralls.io/repos/github/OCHA-DAP/hdx-scraper-chathamhouse/badge.svg?branch=master&ts=1)](https://coveralls.io/github/OCHA-DAP/hdx-scraper-chathamhouse?branch=master)
 
 Collector designed to collect datasets required and runs [Chatham House](http://www.sciencedirect.com/science/article/pii/S2211467X16300396) Model.
 
