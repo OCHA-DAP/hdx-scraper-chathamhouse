@@ -12,7 +12,7 @@ import logging
 from hdx.data.dataset import Dataset
 from hdx.data.resource import Resource
 from hdx.data.showcase import Showcase
-from hdx.utilities.dictandlist import integer_value_convert, key_value_convert
+from hdx.utilities.dictandlist import integer_value_convert
 from hdx.location.country import Country
 from slugify import slugify
 
@@ -213,7 +213,7 @@ def get_slumratios(url, downloader):
     for row in stream.iter(keyed=True):
         if not row:
             break
-        iso3 = Country.get_iso3_country_code(row['Country'])
+        iso3 = Country.get_iso3_from_m49(int(row['CountryCode']))
         if iso3 is None:
             continue
         for year in years:
@@ -223,7 +223,7 @@ def get_slumratios(url, downloader):
     return slumratios
 
 
-def generate_dataset_and_showcase(pop_types, today):
+def generate_dataset_resources_and_showcase(pop_types, today):
     title = 'Energy consumption of refugees and displaced people'
     slugified_name = slugify(title.lower())
 
@@ -240,38 +240,35 @@ def generate_dataset_and_showcase(pop_types, today):
     tags = ['HXL', 'energy', 'refugees', 'internally displaced persons - idp']
     dataset.add_tags(tags)
 
+    resources = list()
     for pop_type in pop_types:
         resource_data = {
             'name': '%s_consumption.csv' % pop_type.lower().replace(' ', '_'),
             'description': '%s %s' % (pop_type, title.lower()),
             'format': 'csv'
         }
-        resource = Resource(resource_data)
-        dataset.add_update_resource(resource)
+        resources.append(Resource(resource_data))
 
     resource_data = {
         'name': 'population.csv',
         'description': 'UNHCR displaced population totals',
         'format': 'csv'
     }
-    resource = Resource(resource_data)
-    dataset.add_update_resource(resource)
+    resources.append(Resource(resource_data))
 
     resource_data = {
         'name': 'keyfigures_disagg.csv',
         'description': 'Disaggregated MEI Key Figures',
         'format': 'csv'
     }
-    resource = Resource(resource_data)
-    dataset.add_update_resource(resource)
+    resources.append(Resource(resource_data))
 
     resource_data = {
         'name': 'keyfigures.csv',
         'description': 'MEI Key Figures',
         'format': 'csv'
     }
-    resource = Resource(resource_data)
-    dataset.add_update_resource(resource)
+    resources.append(Resource(resource_data))
 
     showcase = Showcase({
         'name': '%s-showcase' % slugified_name,
@@ -282,4 +279,4 @@ def generate_dataset_and_showcase(pop_types, today):
     })
     showcase.add_tags(tags)
 
-    return dataset, showcase
+    return dataset, resources, showcase

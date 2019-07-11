@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
 """Global fixtures"""
 import pytest
-from os.path import join, abspath
+from os.path import join
 
-import six
 from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.hdx_locations import Locations
@@ -21,7 +20,7 @@ def configuration():
 
 @pytest.fixture(scope='session')
 def downloader():
-    downloader = Download()
+    downloader = Download(user_agent='test')
     downloader.session = None  # Hack for Tabulator local file issue
     return downloader
 

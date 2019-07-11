@@ -4,15 +4,13 @@
 Unit tests for Chatham House data.
 
 '''
-from pprint import pprint
-
 import pytest
 from datetime import datetime
 
 from os.path import join
 
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, \
-    get_worldbank_series, generate_dataset_and_showcase, check_name_dispersed, get_slumratios, get_camptypes, \
+    get_worldbank_series, generate_dataset_resources_and_showcase, check_name_dispersed, get_camptypes, \
     get_camptypes_fallbacks, get_iso3
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 from tests.expected_results import unhcr_non_camp_expected, unhcr_camp_expected, slum_ratios_expected, \
@@ -113,28 +111,34 @@ class TestChathamHouseData:
         assert check_name_dispersed('Burundi : Dispersed in the country / territory') is True
         assert check_name_dispersed('Afghanistan') is False
 
-    def test_generate_dataset_and_showcase(self, configuration):
-        dataset, showcase = generate_dataset_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
+    def test_generate_dataset_resources_and_showcase(self, configuration):
+        dataset, resources, showcase = generate_dataset_resources_and_showcase(['Urban', 'Small camps'], datetime(2017, 9, 15, 0, 0))
         assert dataset == {'title': 'Energy consumption of refugees and displaced people',
                            'data_update_frequency': '30', 'maintainer': '196196be-6037-4488-8b71-d786adf4c081',
                            'owner_org': '0c6bf79f-504c-4ba5-9fdf-c8cc893c8b2f', 'dataset_date': '09/15/2017',
                            'name': 'energy-consumption-of-refugees-and-displaced-people',
-                           'groups': [{'name': 'world'}], 'tags': [{'name': 'HXL'}, {'name': 'energy'},
-                                                                   {'name': 'refugees'}, {'name': 'internally displaced persons - idp'}]}
-        assert dataset.get_resources() == [{'name': 'urban_consumption.csv', 'format': 'csv',
-                                            'description': 'Urban energy consumption of refugees and displaced people'},
-                                           {'name': 'small_camps_consumption.csv', 'format': 'csv',
-                                            'description': 'Small camps energy consumption of refugees and displaced people'},
-                                           {'name': 'population.csv', 'format': 'csv',
-                                            'description': 'UNHCR displaced population totals'},
-                                           {'name': 'keyfigures_disagg.csv', 'format': 'csv',
-                                            'description': 'Disaggregated MEI Key Figures',},
-                                           {'name': 'keyfigures.csv', 'format': 'csv',
-                                            'description': 'MEI Key Figures'}]
+                           'groups': [{'name': 'world'}],
+                           'tags': [{'name': 'hxl', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'},
+                                    {'name': 'energy', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'},
+                                    {'name': 'refugees', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'},
+                                    {'name': 'internally displaced persons - idp', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'}]}
+        assert resources == [{'name': 'urban_consumption.csv', 'format': 'csv',
+                              'description': 'Urban energy consumption of refugees and displaced people'},
+                             {'name': 'small_camps_consumption.csv', 'format': 'csv',
+                              'description': 'Small camps energy consumption of refugees and displaced people'},
+                             {'name': 'population.csv', 'format': 'csv',
+                              'description': 'UNHCR displaced population totals'},
+                             {'name': 'keyfigures_disagg.csv', 'format': 'csv',
+                              'description': 'Disaggregated MEI Key Figures',},
+                             {'name': 'keyfigures.csv', 'format': 'csv',
+                              'description': 'MEI Key Figures'}]
 
         assert showcase == {'title': 'Energy services for refugees and displaced people',
                             'notes': 'Click the image on the right to go to the energy services model',
                             'image_url': 'https://ars.els-cdn.com/content/image/X2211467X.jpg',
                             'name': 'energy-consumption-of-refugees-and-displaced-people-showcase',
-                            'tags': [{'name': 'HXL'}, {'name': 'energy'}, {'name': 'refugees'}, {'name': 'internally displaced persons - idp'}],
+                            'tags': [{'name': 'hxl', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'},
+                                     {'name': 'energy', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'},
+                                     {'name': 'refugees', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'},
+                                     {'name': 'internally displaced persons - idp', 'vocabulary_id': '4e61d464-4943-4e97-973a-84673c1aaa87'}],
                             'url': 'http://www.sciencedirect.com/science/article/pii/S2211467X16300396'}

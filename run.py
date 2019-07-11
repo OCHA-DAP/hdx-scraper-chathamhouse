@@ -13,7 +13,7 @@ from tempfile import gettempdir
 
 from hdx.facades import logging_kwargs
 logging_kwargs.update({'logging_config_yaml': join('config', 'logging_configuration.yml')})
-from hdx.facades.hdx_scraperwiki import facade
+from hdx.facades.simple import facade
 from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.utilities.dictandlist import avg_dicts, float_value_convert, key_value_convert, integer_value_convert, \
@@ -22,7 +22,7 @@ from hdx.utilities.downloader import Download
 from hdx.location.country import Country
 
 from chathamhouse.chathamhousedata import get_camp_non_camp_populations, get_worldbank_series, \
-    get_slumratios, get_camptypes, generate_dataset_and_showcase, check_name_dispersed, append_value, \
+    get_slumratios, get_camptypes, generate_dataset_resources_and_showcase, check_name_dispersed, append_value, \
     get_camptypes_fallbacks, get_iso3
 from chathamhouse.chathamhousemodel import ChathamHouseModel
 
@@ -148,8 +148,6 @@ def main():
     headers.append(['code', 'title', 'value', 'latest_date', 'source', 'source_link', 'notes', 'explore', 'units'])
 
     today = datetime.utcnow()
-    dataset, showcase = generate_dataset_and_showcase(pop_types, today)
-    resources = dataset.get_resources()
 
     for iso3 in sorted(unhcr_non_camp):
         info = list()
@@ -380,6 +378,7 @@ def main():
             ['MEI04', 'No. of Countries Hosting Refugees and Displaced People', len(country_totals), date, source, data_url, '', '', 'count']]
     results[len(results)-1].extend(rows)
 
+    dataset, resources, showcase = generate_dataset_resources_and_showcase(pop_types, today)
     folder = gettempdir()
     file_to_upload = None
     for i, _ in enumerate(results):
@@ -387,6 +386,7 @@ def main():
         file_to_upload = join(folder, resource['name'])
         write_list_to_csv(results[i], file_to_upload, headers=headers[i])
         resource.set_file_to_upload(file_to_upload)
+    dataset.add_update_resources(resources)
     dataset.update_from_yaml()
     dataset.create_in_hdx()
     for resource in dataset.get_resources():

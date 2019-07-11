@@ -11,13 +11,14 @@ Run Chatham House model.
 import logging
 
 from hdx.location.country import Country
+from hxl import Column
 
 logger = logging.getLogger(__name__)
 
 
 class ChathamHouseModel:
     tiers = ['Baseline', 'Target 1', 'Target 2', 'Target 3']
-    region_levels = {1: 'Region', 2: 'Sub-region', 3: 'Intermediate Region'}
+    region_levels = {1: 'main', 2: 'sub', 3: 'intermediate'}
     expenditure_divisor = 1000000.0
     capital_divisor = 1000000.0
     co2_divisor = 1000.0
@@ -94,9 +95,12 @@ class ChathamHouseModel:
         while level != 0:
             region_level = cls.region_levels[level]
             region_prefix = region_level
-            regioncode = countryinfo['%s Code' % region_prefix]
-            regionname = countryinfo['%s Name' % region_prefix]
+            column = Column.parse('#region+code+%s' % region_prefix)
+            regioncode = countryinfo[column.get_display_tag(sort_attributes=True)]
             if regioncode:
+                regioncode = int(regioncode)
+                column = Column.parse('#region+%s+name+preferred' % region_prefix)
+                regionname = countryinfo[column.get_display_tag(sort_attributes=True)]
                 countries_in_region = Country.get_countries_in_region(regioncode)
                 avg = cls.calculate_average(datadict, countries_in_region)
                 if avg:
