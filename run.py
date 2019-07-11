@@ -399,4 +399,4 @@ def main():
 
 
 if __name__ == '__main__':
-    facade(main, hdx_site='test', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup='hdxscraper-chathamhouse', project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='test', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup='hdx-scraper-chathamhouse', project_config_yaml=join('config', 'project_configuration.yml'))
