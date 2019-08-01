@@ -4,6 +4,7 @@ import pytest
 from os.path import join
 
 from hdx.data.dataset import Dataset
+from hdx.data.vocabulary import Vocabulary
 from hdx.hdx_configuration import Configuration
 from hdx.hdx_locations import Locations
 from hdx.location.country import Country
@@ -16,6 +17,9 @@ from chathamhouse.chathamhousedata import get_slumratios
 def configuration():
     Configuration._create(hdx_read_only=True, user_agent='test')
     Locations.set_validlocations([{'name': 'world', 'title': 'World'}])
+    Vocabulary._tags_dict = True
+    Vocabulary._approved_vocabulary = {'tags': [{'name': 'hxl'}, {'name': 'energy'}, {'name': 'refugees'}, {'name': 'internally displaced persons - idp'}],
+                                       'id': '4e61d464-4943-4e97-973a-84673c1aaa87', 'name': 'approved'}
 
 
 @pytest.fixture(scope='session')

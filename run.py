@@ -388,15 +388,15 @@ def main():
         resource.set_file_to_upload(file_to_upload)
     dataset.add_update_resources(resources)
     dataset.update_from_yaml()
-    dataset.create_in_hdx()
+#    dataset.create_in_hdx()
     for resource in dataset.get_resources():
         name = resource['name'].lower()
         if 'figures' in name and 'disagg' not in name:
             logger.info('Updating key figures datastore for %s' % name)
-            resource.update_datastore_for_topline(path=file_to_upload)
-    showcase.create_in_hdx()
-    showcase.add_dataset(dataset)
+#            resource.update_datastore_for_topline(path=file_to_upload)
+#    showcase.create_in_hdx()
+#    showcase.add_dataset(dataset)
 
 
 if __name__ == '__main__':
-    facade(main, hdx_site='test', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup='hdx-scraper-chathamhouse', project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='demo', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup='hdx-scraper-chathamhouse', project_config_yaml=join('config', 'project_configuration.yml'))
