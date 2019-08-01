@@ -17,6 +17,7 @@ from chathamhouse.chathamhousedata import get_slumratios
 def configuration():
     Configuration._create(hdx_read_only=True, user_agent='test')
     Locations.set_validlocations([{'name': 'world', 'title': 'World'}])
+    Country.countriesdata(use_live=False)
     Vocabulary._tags_dict = True
     Vocabulary._approved_vocabulary = {'tags': [{'name': 'hxl'}, {'name': 'energy'}, {'name': 'refugees'}, {'name': 'internally displaced persons - idp'}],
                                        'id': '4e61d464-4943-4e97-973a-84673c1aaa87', 'name': 'approved'}
